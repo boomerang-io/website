@@ -1,0 +1,680 @@
+import * as React from "react";
+import {
+  Link,
+  Outlet,
+  useLoaderData,
+  useLocation,
+  useMatches,
+  useNavigation,
+  useParams,
+  useResolvedPath,
+  matchPath,
+} from "@remix-run/react";
+import { json, redirect } from "@remix-run/node";
+import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
+import cx from "clsx";
+import "~/styles/docs.css";
+import { DetailsMenu } from "~/components/details-menu";
+import iconsHref from "~/icons.svg";
+import {
+  getRepoBranches,
+  getRepoDocsMenu,
+  getRepoTags,
+  validateParams,
+  getLatestVersion,
+  getLatestVersionHeads,
+} from "~/utils/github";
+import type { Doc } from "~/utils/github";
+import { octokit } from "~/utils/github.server";
+import { env } from "~/utils/env.server";
+import { CACHE_CONTROL } from "~/utils/http.server";
+import { VersionWarningMessage } from "~/components/version-warning-message";
+import { siteConfig } from "~/config/site";
+import { docConfig } from "~/config/doc";
+import { Header } from "~/components/header";
+import { Badge } from "~/components/ui/badge";
+
+export const loader = async ({ params }: LoaderFunctionArgs) => {
+  let { lang = "en", ref = "main", "*": splat } = params;
+
+  let branchesInMenu = docConfig.versions.branches;
+  let [tags, branches] = await Promise.all([
+    //TODO: remove releasePackage and use config
+    getRepoTags({ octokit, releasePackage: env.RELEASE_PACKAGE }),
+    getRepoBranches({ octokit }),
+  ]);
+  if (!tags || !branches) {
+    throw new Response("Cannot reach GitHub", { status: 503 });
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    branches.push("local");
+    branchesInMenu.push("local");
+  }
+
+  let betterUrl = validateParams(tags, branches, { lang, ref, "*": splat });
+  if (betterUrl) throw redirect("/docs/" + betterUrl);
+
+  let latestVersion = getLatestVersion(tags);
+  let menu = await getRepoDocsMenu(ref, lang);
+  let releaseBranch = "main";
+  let isLatest = ref === releaseBranch || ref === latestVersion;
+
+  return json({
+    menu,
+    versions: getLatestVersionHeads(tags),
+    latestVersion,
+    releaseBranch,
+    branches: branchesInMenu,
+    currentGitHubRef: ref,
+    lang,
+    isLatest,
+    repoUrl: "https://github.com/" + env.SOURCE_REPO,
+  });
+};
+
+export const headers: HeadersFunction = () => {
+  return {
+    "Cache-Control": CACHE_CONTROL.DEFAULT,
+    Vary: "Cookie",
+  };
+};
+
+export default function DocsLayout() {
+  let params = useParams();
+  let navigation = useNavigation();
+  let navigating =
+    navigation.state === "loading" && navigation.formData == null;
+  let changingVersions =
+    navigating &&
+    params.ref &&
+    // TODO: we should have `transition.params`
+    !navigation.location!.pathname.match(params.ref);
+
+  let location = useLocation();
+  let detailsRef = React.useRef<HTMLDetailsElement>(null);
+
+  React.useEffect(() => {
+    let details = detailsRef.current;
+    if (details && details.hasAttribute("open")) {
+      details.removeAttribute("open");
+    }
+  }, [location]);
+
+  let docsContainer = React.useRef<HTMLDivElement>(null);
+
+  let versionData = useLoaderData<typeof loader>();
+
+  return (
+    <div className="[--header-height:theme(spacing.16)] [--nav-width:theme(spacing.72)]">
+      <div className="sticky top-0 z-20">
+        <Header versionData={versionData} />
+        <VersionWarning />
+        <NavMenuMobile />
+      </div>
+      <div
+        className={
+          changingVersions
+            ? "opacity-25 transition-opacity delay-300"
+            : undefined
+        }
+      >
+        <InnerContainer>
+          <div className="block lg:flex">
+            <NavMenuDesktop />
+            <div
+              ref={docsContainer}
+              className={cx(
+                // add scroll margin to focused elements so that they aren't
+                // obscured by the sticky header
+                "[&_*:focus]:scroll-mt-[8rem] lg:[&_*:focus]:scroll-mt-[5rem]",
+                // Account for the left navbar
+                "min-h-[80vh] lg:ml-3 lg:w-[calc(100%-var(--nav-width))]",
+                "lg:pl-6 xl:pl-10 2xl:pl-12",
+                !changingVersions && navigating
+                  ? "opacity-25 transition-opacity delay-300"
+                  : ""
+              )}
+            >
+              <Outlet />
+              <div className="pt-8 sm:pt-10 lg:pt-12">
+                <Footer />
+              </div>
+            </div>
+          </div>
+        </InnerContainer>
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  let { repoUrl } = useLoaderData<typeof loader>();
+  return (
+    <div className="place-content-center flex justify-between gap-4 border-t border-t-gray-50 py-4 text-sm text-gray-400 dark:border-gray-800">
+      <div className="sm:flex sm:items-center sm:gap-2 lg:gap-4">
+        <div>
+          &copy; 2024{" "}
+          <a className="hover:underline" href={siteConfig.url}>
+            {siteConfig.project}
+          </a>
+          . All rights reserved.
+        </div>
+        <div className="hidden sm:block">•</div>
+        <div>
+          Docs and examples licensed under{" "}
+          <a className="hover:underline" href={siteConfig.license.url}>
+            {siteConfig.license.name}
+          </a>
+        </div>
+        <div className="hidden sm:block">•</div>
+        <div>
+          <EditLink repoUrl={repoUrl} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// function VersionSelect() {
+//   let {
+//     versions,
+//     latestVersion,
+//     releaseBranch,
+//     branches,
+//     currentGitHubRef,
+//     lang,
+//   } = useLoaderData<typeof loader>();
+
+//   // This is the same default, hover, focus style as the ColorScheme trigger
+//   const baseClasses =
+//     "bg-gray-100 hover:bg-gray-200 [[open]>&]:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:[[open]>&]:bg-gray-700";
+
+//   return (
+//     <DetailsMenu className="relative">
+//       <summary
+//         className={`_no-triangle relative flex h-[40px] cursor-pointer list-none items-center justify-center gap-1 rounded-full px-3 text-sm ${baseClasses}`}
+//       >
+//         <div>{currentGitHubRef}</div>
+//         <svg aria-hidden className="-mr-1 h-5 w-5">
+//           <use href={`${iconsHref}#chevrons-up-down`} />
+//         </svg>
+//       </summary>
+//       <DetailsPopup>
+//         <div className="flex flex-col gap-px">
+//           {branches.length > 0 && <VersionsLabel label="Branches" />}
+//           {branches.map((branch) => {
+//             return (
+//               <VersionLink
+//                 key={branch}
+//                 to={
+//                   currentGitHubRef === branch ? "" : `/docs/${lang}/${branch}`
+//                 }
+//               >
+//                 {releaseBranch === branch ? `main (${latestVersion})` : branch}
+//               </VersionLink>
+//             );
+//           })}
+//           <VersionsLabel label="Versions" />
+//           {versions.map((version) => (
+//             <VersionLink
+//               key={version}
+//               to={
+//                 currentGitHubRef === version ? "" : `/docs/${lang}/${version}`
+//               }
+//             >
+//               {version}
+//             </VersionLink>
+//           ))}
+//         </div>
+//       </DetailsPopup>
+//     </DetailsMenu>
+//   );
+// }
+
+// function VersionsLabel({ label }: { label: string }) {
+//   return (
+//     <div className="flex w-full items-center gap-2 px-2 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
+//       {label}
+//     </div>
+//   );
+// }
+
+// function VersionLink({
+//   to,
+//   children,
+// }: {
+//   to: string;
+//   children: React.ReactNode;
+// }) {
+//   let isExternal = to.startsWith("http");
+//   let isActive = useIsActivePath(to);
+//   let className = cx(
+//     "flex w-full items-center gap-2 py-2 px-2 rounded-sm text-sm transition-colors duration-100",
+//     isActive
+//       ? "text-black bg-blue-200 dark:bg-blue-800 dark:text-gray-100"
+//       : "text-gray-700 hover:bg-blue-200/50 hover:text-black dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-blue-800/50"
+//   );
+
+//   if (isExternal) {
+//     return (
+//       <a href={to} className={className}>
+//         {children}
+//       </a>
+//     );
+//   }
+
+//   return to ? (
+//     <Link to={to} className={className}>
+//       {children}
+//     </Link>
+//   ) : (
+//     <span className={className}>{children}</span>
+//   );
+// }
+
+function VersionWarning() {
+  let { isLatest, branches, currentGitHubRef } = useLoaderData<typeof loader>();
+  if (isLatest) return null;
+  let { "*": splat } = useParams();
+
+  return (
+    <div className="text-center">
+      <div className="p-2 bg-[#0072c3] text-xs text-white">
+        <VersionWarningMessage
+          branches={branches}
+          currentGitHubRef={currentGitHubRef}
+          splat={splat}
+        />
+      </div>
+    </div>
+  );
+}
+
+// function HeaderMenuLink({
+//   className = "",
+//   to,
+//   children,
+// }: {
+//   to: string;
+//   className?: string;
+//   children: React.ReactNode;
+// }) {
+//   let isActive = useIsActivePath(to);
+
+//   return (
+//     <Link
+//       prefetch="intent"
+//       to={to}
+//       className={cx(
+//         className,
+//         "p-2 py-2.5 text-sm leading-none underline-offset-4 hover:underline md:p-3",
+//         isActive
+//           ? "text-black underline decoration-black dark:text-gray-200 dark:decoration-gray-200"
+//           : "text-gray-500 decoration-gray-200 dark:text-gray-400 dark:decoration-gray-500"
+//       )}
+//     >
+//       {children}
+//     </Link>
+//   );
+// }
+
+// function HeaderMenuMobile({ className = "" }: { className: string }) {
+//   // This is the same default, hover, focus style as the VersionSelect
+//   let baseClasses =
+//     "bg-gray-100 hover:bg-gray-200 [[open]>&]:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:[[open]>&]:bg-gray-700";
+
+//   return (
+//     <DetailsMenu className={cx("relative cursor-pointer", className)}>
+//       <summary
+//         className={cx(
+//           baseClasses,
+//           "_no-triangle grid h-10 w-10 place-items-center rounded-full"
+//         )}
+//       >
+//         <svg className="h-5 w-5">
+//           <use href={`${iconsHref}#menu`} />
+//         </svg>
+//       </summary>
+//       <DetailsPopup>
+//         <div className="flex flex-col">
+//           <HeaderMenuLink to="/docs">Docs</HeaderMenuLink>
+//           <HeaderMenuLink to="/blog">Blog</HeaderMenuLink>
+//           <HeaderMenuLink to="/showcase">Showcase</HeaderMenuLink>
+//           <HeaderMenuLink to="/resources">Resources</HeaderMenuLink>
+//         </div>
+//       </DetailsPopup>
+//     </DetailsMenu>
+//   );
+// }
+
+// function HeaderLink({
+//   className = "",
+//   href,
+//   svgId,
+//   label,
+//   svgSize,
+//   title,
+// }: {
+//   className?: string;
+//   href: string;
+//   svgId: string;
+//   label: string;
+//   svgSize: string;
+//   title?: string;
+// }) {
+//   let [width, height] = svgSize.split("x");
+
+//   return (
+//     <a
+//       href={href}
+//       className={cx(
+//         `hidden h-10 w-10 place-items-center text-black hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-50 md:grid`,
+//         className
+//       )}
+//       title={title}
+//     >
+//       <span className="sr-only">{label}</span>
+//       <svg aria-hidden style={{ width: `${width}px`, height: `${height}px` }}>
+//         <use href={`${iconsHref}#${svgId}`} />
+//       </svg>
+//     </a>
+//   );
+// }
+
+function NavMenuMobile() {
+  let doc = useDoc();
+  return (
+    <div className="lg:hidden">
+      <DetailsMenu className="group relative flex h-full flex-col">
+        <summary
+          tabIndex={0}
+          className="_no-triangle flex cursor-pointer select-none items-center gap-2 border-b border-gray-50 bg-white px-2 py-3 text-sm font-medium hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700"
+        >
+          <div className="flex items-center gap-2">
+            <svg aria-hidden className="h-5 w-5 group-open:hidden">
+              <use href={`${iconsHref}#chevron-r`} />
+            </svg>
+            <svg aria-hidden className="hidden h-5 w-5 group-open:block">
+              <use href={`${iconsHref}#chevron-d`} />
+            </svg>
+          </div>
+          <div className="whitespace-nowrap font-bold">
+            {doc ? doc.attrs.title : "Navigation"}
+          </div>
+        </summary>
+        <div className="absolute h-[66vh] w-full overflow-auto overscroll-contain border-b bg-white p-2 pt-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900 dark:shadow-black">
+          <Menu />
+        </div>
+      </DetailsMenu>
+    </div>
+  );
+}
+
+function NavMenuDesktop() {
+  return (
+    <div
+      className={cx(
+        "sticky bottom-0 top-16 -ml-3 hidden w-[--nav-width] flex-col gap-3 self-start overflow-auto pb-10 pr-5 pt-5 lg:flex",
+        // Account for the height of the top nav
+        "h-[calc(100vh-var(--header-height))]"
+      )}
+    >
+      <div className="[&_*:focus]:scroll-mt-[6rem]">
+        <Menu />
+      </div>
+    </div>
+  );
+}
+
+function Menu() {
+  let { menu } = useLoaderData<typeof loader>();
+
+  return menu ? (
+    <nav>
+      <ul>
+        {menu.map((category) => {
+          // Technically we can have a category that has content (and thus
+          // needs it's own link) _and_ has children, so needs to be a details
+          // element. It's ridiculous, but it's possible.
+          const menuCategoryType = category.hasContent
+            ? category.children.length > 0
+              ? "linkAndDetails"
+              : "link"
+            : "details";
+
+          return (
+            <li key={category.attrs.title} className="mb-3">
+              {menuCategoryType === "link" ? (
+                <MenuSummary as="div">
+                  <MenuCategoryLink to={category.slug}>
+                    {category.attrs.title}
+                  </MenuCategoryLink>
+                </MenuSummary>
+              ) : (
+                <MenuCategoryDetails className="group" slug={category.slug}>
+                  <MenuSummary>
+                    {menuCategoryType === "linkAndDetails" ? (
+                      <MenuCategoryLink to={category.slug}>
+                        {category.attrs.title}
+                      </MenuCategoryLink>
+                    ) : (
+                      category.attrs.title
+                    )}
+                    <svg aria-hidden className="h-5 w-5 group-open:hidden">
+                      <use href={`${iconsHref}#chevron-r`} />
+                    </svg>
+                    <svg
+                      aria-hidden
+                      className="hidden h-5 w-5 group-open:block"
+                    >
+                      <use href={`${iconsHref}#chevron-d`} />
+                    </svg>
+                  </MenuSummary>
+                  {category.children.map((doc) => {
+                    return (
+                      <MenuLink key={doc.slug} to={doc.slug}>
+                        {doc.attrs.title}{" "}
+                        {doc.attrs.tag && (
+                          <Badge variant="secondary">${doc.attrs.tag}</Badge>
+                        )}
+                      </MenuLink>
+                    );
+                  })}
+                </MenuCategoryDetails>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  ) : (
+    <div className="bold text-gray-300">Failed to load menu</div>
+  );
+}
+
+type MenuCategoryDetailsType = {
+  className?: string;
+  slug: string;
+  children: React.ReactNode;
+};
+
+function MenuCategoryDetails({
+  className,
+  slug,
+  children,
+}: MenuCategoryDetailsType) {
+  const isActivePath = useIsActivePath(slug);
+  // By default only the active path is open
+  const [isOpen, setIsOpen] = React.useState(isActivePath);
+
+  // Auto open the details element, useful when navigating from the home page
+  React.useEffect(() => {
+    if (isActivePath) {
+      setIsOpen(true);
+    }
+  }, [isActivePath]);
+
+  return (
+    <details
+      className={cx(className, "relative flex cursor-pointer flex-col")}
+      open={isOpen}
+      onToggle={(e) => {
+        // Synchronize the DOM's state with React state to prevent the
+        // details element from being closed after navigation and re-evaluation
+        // of useIsActivePath
+        setIsOpen(e.currentTarget.open);
+      }}
+    >
+      {children}
+    </details>
+  );
+}
+
+// This components attempts to keep all of the styles as similar as possible
+function MenuSummary({
+  children,
+  as = "summary",
+}: {
+  children: React.ReactNode;
+  as?: "summary" | "div";
+}) {
+  const sharedClassName =
+    "rounded-2xl px-3 py-3 transition-colors duration-100";
+  const wrappedChildren = (
+    <div className="flex h-5 w-full items-center justify-between text-base font-semibold leading-[1.125]">
+      {children}
+    </div>
+  );
+
+  if (as === "summary") {
+    return (
+      <summary
+        className={cx(
+          sharedClassName,
+          "_no-triangle block select-none",
+          "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-800  dark:focus-visible:ring-gray-100",
+          "hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700"
+        )}
+      >
+        {wrappedChildren}
+      </summary>
+    );
+  }
+
+  return (
+    <div
+      className={cx(
+        sharedClassName,
+        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-blue-800 dark:has-[:focus-visible]:ring-gray-100"
+      )}
+    >
+      {wrappedChildren}
+    </div>
+  );
+}
+
+function MenuCategoryLink({
+  to,
+  children,
+}: {
+  to: string;
+  children: React.ReactNode;
+}) {
+  let isActive = useIsActivePath(to);
+
+  return (
+    <Link
+      prefetch="intent"
+      to={to}
+      className={cx(
+        "outline-none focus-visible:text-blue-brand dark:focus-visible:text-blue-400",
+        isActive
+          ? "text-blue-brand dark:text-blue-brand"
+          : "hover:text-blue-500"
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MenuLink({ to, children }: { to: string; children: React.ReactNode }) {
+  let isActive = useIsActivePath(to);
+  return (
+    <Link
+      prefetch="intent"
+      to={to}
+      className={cx(
+        "group relative my-px flex min-h-[2.25rem] items-center rounded-md border-transparent px-3 py-2 text-sm",
+        "outline-none transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-800  dark:focus-visible:ring-gray-100",
+        isActive
+          ? ["text-black", "bg-accent"]
+          : ["text-gray-700 hover:text-black", "hover:bg-accent"]
+      )}
+      children={children}
+    />
+  );
+}
+
+/*
+ * Generates a link to GitHub in the footer. View for tags. Edit for branches.
+ */
+function EditLink({ repoUrl }: { repoUrl: string }) {
+  let doc = useDoc();
+  let params = useParams();
+  let isEditableRef = params.ref === "main" || params.ref === "dev";
+  let text = "Edit on GitHub";
+  // TODO: deal with translations when we add them with params.lang
+  if (doc) {
+    let url = `${repoUrl}/edit/${params.ref}/${doc.slug}.md`;
+
+    if (!doc || !isEditableRef) {
+      text = "View on GitHub";
+      url = `${repoUrl}/blob/${params.ref}/${doc.slug}.md`;
+    }
+
+    return (
+      <a
+        className="flex items-center gap-1 hover:underline"
+        href={url}
+        target="_blank"
+      >
+        {text}
+        <svg aria-hidden className="h-4 w-4">
+          <use href={`${iconsHref}#edit`} />
+        </svg>
+      </a>
+    );
+  }
+  return null;
+}
+
+function InnerContainer({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="m-auto px-4 sm:px-6 lg:px-8 xl:max-w-[90rem]">
+      {children}
+    </div>
+  );
+}
+
+function hasDoc(data: unknown): data is { doc: Doc } {
+  return !!data && typeof data === "object" && "doc" in data;
+}
+
+function useDoc(): Doc | null {
+  let data = useMatches().at(-1)?.data;
+  if (!hasDoc(data)) return null;
+  return data.doc;
+}
+
+function useIsActivePath(to: string) {
+  let { pathname } = useResolvedPath(to);
+  let navigation = useNavigation();
+  let currentLocation = useLocation();
+  let navigating =
+    navigation.state === "loading" && navigation.formData == null;
+  let location = navigating ? navigation.location! : currentLocation;
+  let match = matchPath(pathname + "/*", location.pathname);
+  return Boolean(match);
+}
