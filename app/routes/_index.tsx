@@ -1,14 +1,21 @@
 import type { MetaFunction } from "@remix-run/node";
 import { Link } from "@remix-run/react";
 import { Header } from "~/components/header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 import { siteConfig } from "~/config/site";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Remix Docs Template | Boomerang" },
+    { title: siteConfig.name },
     {
       name: "description",
-      content: "A template by the Boomerang open source community.",
+      content: siteConfig.description,
     },
   ];
 };
@@ -19,89 +26,148 @@ export default function Index() {
       <Header className="pb-8" />
       <div className="flex flex-col min-h-[100dvh]">
         <main className="flex-1">
-          <section className="w-full py-12 md:pt-24 md:pb-12 lg:pt-32 lg:pb-16 xl:pt-48 xl:pb-24">
-            <div className="container px-4 md:px-6">
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <div className="space-y-2">
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
-                    Document. Publish. Collaborate.
-                  </h1>
-                  <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
-                    A minimalist Remix template for sharing your documentation
-                    with the world. By the Boomerang open source community
-                  </p>
-                </div>
-                <div className="space-x-4">
+          <section className="bg-gray-900 text-white py-12 md:py-20">
+            <div className="container mx-auto px-4 md:px-6 grid md:grid-cols-2 gap-8 items-center">
+              <div className="space-y-4">
+                <h1 className="text-4xl md:text-5xl font-bold">
+                  {siteConfig.name}
+                </h1>
+                <p className="text-gray-300">{siteConfig.description}</p>
+              </div>
+              <div className="hidden md:block">
+                <img
+                  alt="Sydney Skyline"
+                  className="w-full"
+                  height={100}
+                  src="/sydney_skyline.svg"
+                  style={{
+                    aspectRatio: "600/400",
+                    // objectFit: "cover",
+                  }}
+                  width={300}
+                />
+              </div>
+            </div>
+          </section>
+          <section className="bg-white py-12 md:py-20">
+            <div className="container mx-auto px-4 md:px-6 grid md:grid-cols-2 gap-8 items-center justify-center">
+              <div className="space-y-4">
+                <h2 className="text-3xl md:text-4xl font-bold">
+                  Boomerang Runner
+                </h2>
+                <p className="text-gray-500">
+                  Boomerang Runner is a lightweight and scalable runner for
+                  executing tasks in the cloud. It's designed to work seamlessly
+                  with the Boomerang platform, providing a reliable and
+                  efficient way to run your pipelines.
+                </p>
+                <div className="flex gap-4">
                   <Link
-                    className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
-                    to={`${siteConfig.github.repoUrl}`}
+                    className="inline-flex items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
+                    href="#"
                   >
                     Get Started
                   </Link>
                   <Link
-                    className="inline-flex h-9 items-center justify-center rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-800 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-300"
-                    to="/docs"
+                    className="inline-flex items-center justify-center rounded-md border border-gray-200 border-gray-200 bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-800 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-300"
+                    href="#"
                   >
-                    View Example
+                    Learn More
                   </Link>
                 </div>
               </div>
+              <div className="hidden md:block">
+                <img
+                  alt="Boomerang Runner"
+                  className="w-full max-w-md"
+                  height={400}
+                  src="/placeholder.svg"
+                  style={{
+                    aspectRatio: "600/400",
+                    objectFit: "cover",
+                  }}
+                  width={600}
+                />
+              </div>
             </div>
           </section>
-          <section className="relative max-w-6xl mx-auto px-4 py-8 md:py-12 lg:py-24 sm:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="flex flex-col items-start space-y-2">
-                <RocketIcon className="text-primary w-6 h-6" />
-                <h3 className="text-lg font-semibold">Remote Fetching</h3>
-                <p className="text-sm text-gray-600">
-                  Fetching markdown and images from GitHub. As simple as
-                  swapping out the repo and running.
-                </p>
-              </div>
-              <div className="flex flex-col items-start space-y-2">
-                <CogIcon className="text-primary w-6 h-6" />
-                <h3 className="text-lg font-semibold">Versions</h3>
-                <p className="text-sm text-gray-600">
-                  Ability to switch versions to branches or tags. With ability
-                  to configure what branches and if minor tags are included.
-                </p>
-              </div>
-              <div className="flex flex-col items-start space-y-2">
-                <ServerIcon className="text-primary w-6 h-6" />
-                <h3 className="text-lg font-semibold">
-                  Customisable components <i>future</i>
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Components are using shadcn/ui and can be themed or swapped
-                  out
-                </p>
-              </div>
-              <div className="flex flex-col items-start space-y-2">
-                <LightbulbIcon className="text-primary w-6 h-6" />
-                <h3 className="text-lg font-semibold">Configurable</h3>
-                <p className="text-sm text-gray-600">
-                  Adjust the settings to configure how the documentation
-                  functions or point to a new repo and run as is.
-                </p>
-              </div>
-              <div className="flex flex-col items-start space-y-2">
-                <BarChartIcon className="text-primary w-6 h-6" />
-                <h3 className="text-lg font-semibold">Cache support</h3>
-                <p className="text-sm text-gray-600">
-                  All the markdown and images are cached per version to reduce
-                  the load.
-                </p>
-              </div>
-              <div className="flex flex-col items-start space-y-2">
-                <ShieldCheckIcon className="text-primary w-6 h-6" />
-                <h3 className="text-lg font-semibold">
-                  Language Support <i>future</i>
-                </h3>
-                <p className="text-sm text-gray-600">
-                  The routes have the ability to switch languages.
-                  Implementation has not yet been figured out.
-                </p>
-              </div>
+          <section className="flex flex-col gap-8 px-4 py-12 md:py-16 lg:py-20">
+            <div className="mx-auto max-w-3xl text-center">
+              <h2 className="text-2xl font-bold tracking-tighter sm:text-3xl md:text-4xl">
+                Featured Repositories
+              </h2>
+              <p className="mt-4 text-gray-500 md:text-xl dark:text-gray-400">
+                Explore our collection of cloud-native projects for CI/CD and
+                automation.
+              </p>
+            </div>
+            <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader className="flex items-center gap-4">
+                  <div className="grid gap-1">
+                    <CardTitle>Boomerang</CardTitle>
+                    <CardDescription>
+                      A cloud-native CI/CD platform for building, testing, and
+                      deploying applications.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between">
+                  <Link
+                    className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
+                    href="#"
+                  >
+                    Learn More
+                  </Link>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span>1.2K</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex items-center gap-4">
+                  <div className="grid gap-1">
+                    <CardTitle>Boomerang Scheduler</CardTitle>
+                    <CardDescription>
+                      A scalable and reliable scheduler for running periodic
+                      tasks in the cloud.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between">
+                  <Link
+                    className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
+                    href="#"
+                  >
+                    Learn More
+                  </Link>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span>800</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex items-center gap-4">
+                  <div className="grid gap-1">
+                    <CardTitle>Boomerang Runner</CardTitle>
+                    <CardDescription>
+                      A lightweight and scalable runner for executing tasks in
+                      the cloud.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between">
+                  <Link
+                    className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
+                    href="#"
+                  >
+                    Learn More
+                  </Link>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span>600</span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </section>
         </main>

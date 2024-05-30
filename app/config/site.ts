@@ -1,11 +1,11 @@
 export const siteConfig = {
-  name: "Remix Docs Template", 
+  name: "Boomerang", 
   project: "Boomerang",
   url: "https://useboomerang.io",
   description:
-    "A collection of open source projects for CI/CD and automation",
+    "A collection of open-source projects for CI/CD and automation",
   github: {
-    repoUrl: "https://github.com/boomerang-io/remix-docs-template"
+    repoUrl: "https://github.com/boomerang-io"
   },
   twitter: {
     handle: "@useboomerang",
