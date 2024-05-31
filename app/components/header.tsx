@@ -43,15 +43,21 @@ export function Header({ className, versionData }: HeaderProps) {
   } = versionData || {};
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      className={cn(
+        "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        className
+      )}
+    >
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
-          <Link to="/" className="mr-6 flex items-center space-x-4">
-            <BookIcon className="h-6 w-6" />
+          <Link to="/" className=" mr-6 flex items-center space-x-4">
+            <img
+              src="/boomerang-logo-dark.svg"
+              className="h-7"
+              alt={siteConfig.name}
+            />
             <span className="sr-only">{siteConfig.name}</span>
-            <span className="font-medium sm:inline-block sm:text-">
-              {siteConfig.name}
-            </span>
           </Link>
           {versionData && (
             <nav className="flex items-center text-sm">
@@ -108,8 +114,8 @@ function MainNav() {
   const location = useLocation();
 
   return (
-    <div className="hidden md:flex flex-1 items-center justify-between space-x-2 md:justify-end">
-      <nav className="flex items-center space-x-6 text-sm font-medium">
+    <div className="hidden md:flex flex-1 items-center justify-between gap-6 md:justify-end">
+      <nav className="flex items-center gap-6 text-sm font-medium">
         {navConfig.mainNav?.map(
           (item) =>
             item.href && (
@@ -117,10 +123,10 @@ function MainNav() {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "transition-colors hover:text-foreground hover:underline underline-offset-4",
-                  location.pathname === "/features"
+                  "transition-colors hover:text-foreground text-muted-foreground hover:underline underline-offset-4",
+                  location.pathname.startsWith(item.href)
                     ? "text-foreground"
-                    : "text-foreground/60"
+                    : "text-muted-foreground"
                 )}
               >
                 {item.title}
@@ -128,10 +134,10 @@ function MainNav() {
             )
         )}
       </nav>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-3">
         <Link
           key="github"
-          to="https://github.com/remix-run/remix"
+          to={siteConfig.github.repoUrl}
           className={cn(
             "h-10 w-10 place-items-center text-black hover:text-gray-600  md:grid"
           )}
@@ -152,7 +158,7 @@ function MainNav() {
           <img
             aria-hidden
             style={{ width: `24px`, height: `24px` }}
-            src="/icons/slack.svg"
+            src="/logo/slack.svg"
           />
         </Link>
       </div>

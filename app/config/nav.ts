@@ -17,5 +17,9 @@ export const navConfig: NavConfig = {
       title: "Docs",
       href: "/docs",
     },
+    {
+      title: "About",
+      href: "/about",
+    },
   ],
 }
