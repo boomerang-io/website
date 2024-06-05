@@ -139,7 +139,7 @@ function MainNav() {
           key="github"
           to={siteConfig.github.repoUrl}
           className={cn(
-            "h-10 w-10 place-items-center text-black hover:text-gray-600  md:grid"
+            "h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid"
           )}
         >
           <span className="sr-only">"View on GitHub"</span>

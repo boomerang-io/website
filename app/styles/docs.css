@@ -496,7 +496,7 @@
   }
 
   & docs-card {
-    @apply block h-full w-full rounded-lg border-[3px] border-gray-50 p-4 hover:border-gray-100 dark:border-gray-700 hover:dark:border-gray-600 sm:p-6;
+    @apply block h-full w-full rounded-md border-[3px] border-gray-50 p-4 hover:border-gray-100 dark:border-gray-700 hover:dark:border-gray-600 sm:p-6;
 
     & > :first-child {
       @apply mt-0;
