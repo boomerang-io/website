@@ -10,6 +10,7 @@ import { docConfig } from "~/config/doc";
 
 interface MenuDocAttributes {
   title: string;
+  description?: string;
   order?: number;
   new?: boolean;
   [key: string]: any;

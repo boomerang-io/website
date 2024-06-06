@@ -39,15 +39,17 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 
   let branchesInMenu = docConfig.versions.branches;
   let [tags, branches] = await Promise.all([
-    //TODO: remove releasePackage and use config
-    getRepoTags({ octokit, releasePackage: env.RELEASE_PACKAGE }),
+    getRepoTags({ octokit, releasePackage: env.RELEASE_SCOPE }),
     getRepoBranches({ octokit }),
   ]);
   if (!tags || !branches) {
     throw new Response("Cannot reach GitHub", { status: 503 });
   }
 
-  if (process.env.NODE_ENV === "development") {
+  if (
+    process.env.NODE_ENV === "development" &&
+    !branchesInMenu.includes("local")
+  ) {
     branches.push("local");
     branchesInMenu.push("local");
   }

@@ -202,17 +202,17 @@
   }
 
   & h2 {
-    @apply text-xl font-bold md:text-2xl;
+    @apply text-xl font-semibold md:text-2xl;
   }
 
   & h3 {
-    @apply text-lg font-bold md:text-xl;
+    @apply text-lg font-semibold md:text-xl;
   }
 
   & h4,
   & h5,
   & h6 {
-    @apply text-lg font-bold md:text-xl;
+    @apply text-lg font-semibold md:text-xl;
   }
 
   & h1 code,

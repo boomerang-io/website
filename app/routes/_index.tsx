@@ -226,9 +226,8 @@ export default function Index() {
                   <img
                     alt="Workflow Editor"
                     loading="lazy"
-                    className="!m-0 aspect-[1000/562]"
-                    src="/boomerang-flow-editor.png"
-                    height={562}
+                    className="!m-0 aspect-[2462/1672]"
+                    src="/remix-docs-template.png"
                     width={1000}
                   />
                 </span>
@@ -270,7 +269,7 @@ export default function Index() {
                   <img
                     alt="Workflow Editor"
                     className="!m-0 aspect-[1000/562]"
-                    src="/boomerang-flow-editor.png"
+                    src="/logo/boomerang-bosun.svg"
                     height={562}
                     width={1000}
                   />

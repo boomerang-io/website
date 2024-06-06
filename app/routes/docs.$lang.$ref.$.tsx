@@ -81,10 +81,12 @@ export const meta: MetaFunction<Loader, MatchLoaders> = (args) => {
     (match) => match.id === LAYOUT_LOADER_KEY
   )?.data;
   let rootData = args.matches.find((match) => match.id === "root")?.data;
-  invariant(
-    parentData && "latestVersion" in parentData,
-    "No parent data found"
-  );
+  if (process.env.NODE_ENV !== "development") {
+    invariant(
+      parentData && "latestVersion" in parentData,
+      "No parent data found"
+    );
+  }
   invariant(rootData && "isProductionHost" in rootData, "No root data found");
 
   if (!data) {
@@ -100,11 +102,12 @@ export const meta: MetaFunction<Loader, MatchLoaders> = (args) => {
       ? ""
       : branches.includes(currentGitHubRef)
       ? ` (${currentGitHubRef} branch)`
-      : currentGitHubRef.startsWith("v")
+      : currentGitHubRef.startsWith(docConfig.versions.prefix)
       ? ` (${currentGitHubRef})`
       : ` (v${currentGitHubRef})`;
 
   let title = doc.attrs.title + titleAppend;
+  let description = doc.attrs.description ?? siteConfig.description;
 
   // seo: only want to index the main branch
   let isMainBranch = currentGitHubRef === releaseBranch;
@@ -118,8 +121,7 @@ export const meta: MetaFunction<Loader, MatchLoaders> = (args) => {
 
   return getMeta({
     title: `${title} | ${siteConfig.name}`,
-    // TODO: add a description
-    // let description: 'some description';
+    description: `${description}`,
     siteUrl,
     image: ogImageUrl,
     additionalMeta: [
