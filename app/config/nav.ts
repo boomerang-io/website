@@ -1,6 +1,8 @@
 type MainNavItem = {
   title: string,
   href: string,
+  description?: string,
+  children? : MainNavItem[]
 }
 
 interface NavConfig {
@@ -10,12 +12,25 @@ interface NavConfig {
 export const navConfig: NavConfig = {
   mainNav: [
     {
-      title: "Flow",
+      title: "Boomerang Flow",
       href: "/flow",
-    },
-    {
-      title: "Docs",
-      href: "/docs",
+      children: [
+        {
+          title: "Overview",
+          description: "Find out more about what it is and how it can help you.",
+          href: "/flow",
+        },
+        {
+          title: "Try Me",
+          description: "Try out Boomerang Flow for yourself. Sponsored by Backstop.",
+          href: "/flow/try",
+        },
+        {
+          title: "Documentation",
+          description: "Dive deep and learn everything there is to know about Boomerang Flow.",
+          href: "/docs",
+        },
+      ],
     },
     {
       title: "About",

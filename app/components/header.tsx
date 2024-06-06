@@ -18,6 +18,17 @@ import {
   Select,
 } from "~/components/ui/select";
 import { cn } from "~/utils/theme";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "~/components/ui/navigation-menu";
+import { Label } from "~/components/ui/label";
+import { Separator } from "~/components/ui/separator";
 
 type HeaderProps = {
   className?: string;
@@ -111,57 +122,75 @@ export function Header({ className, versionData }: HeaderProps) {
 }
 
 function MainNav() {
-  const location = useLocation();
-
   return (
     <div className="hidden md:flex flex-1 items-center justify-between gap-6 md:justify-end">
-      <nav className="flex items-center gap-6 text-sm font-medium">
-        {navConfig.mainNav?.map(
-          (item) =>
-            item.href && (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "transition-colors hover:text-foreground text-muted-foreground hover:underline underline-offset-4",
-                  location.pathname.startsWith(item.href)
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-                )}
-              >
-                {item.title}
-              </Link>
+      <NavigationMenu>
+        <NavigationMenuList>
+          {navConfig.mainNav?.map((item) =>
+            item.children && item.children.length > 0 ? (
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>{item.title}</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[300px] gap-3 p-2 rounded-md">
+                    {item.children.map((child, index) => (
+                      <li key={index}>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            className={
+                              "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            }
+                            to={child.href}
+                          >
+                            <div className="text-sm font-medium leading-none">
+                              {child.title}
+                            </div>
+                            <p className="line-clamp-2 text-sm font-normal leading-snug text-muted-foreground">
+                              {child.description}
+                            </p>
+                          </Link>
+                        </NavigationMenuLink>
+                      </li>
+                    ))}
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            ) : (
+              <NavigationMenuItem>
+                <Link to={item.href}>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    {item.title}
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
             )
-        )}
-      </nav>
-      <div className="flex items-center gap-3">
-        <Link
-          key="github"
-          to={siteConfig.github.repoUrl}
-          className={cn(
-            "h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid"
           )}
-        >
-          <span className="sr-only">"View on GitHub"</span>
-          <svg aria-hidden style={{ width: `24px`, height: `24px` }}>
-            <use href={`${iconsHref}#github`} />
-          </svg>
-        </Link>
-        <Link
-          key="slack"
-          to="https://join.slack.com/t/boomerang-io/shared_invite/zt-pxo2yw2o-c3~6YvWkKNrKIwhIBAKhaw"
-          className={cn(
-            "h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid"
-          )}
-        >
-          <span className="sr-only">"Chat on Slack"</span>
-          <img
-            aria-hidden
-            style={{ width: `24px`, height: `24px` }}
-            src="/logo/slack.svg"
-          />
-        </Link>
-      </div>
+          <NavigationMenuItem>
+            <Link key="github" to={siteConfig.github.repoUrl}>
+              <NavigationMenuLink className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
+                <span className="sr-only">"View on GitHub"</span>
+                <svg aria-hidden style={{ width: `24px`, height: `24px` }}>
+                  <use href={`${iconsHref}#github`} />
+                </svg>
+              </NavigationMenuLink>
+            </Link>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
+            <Link
+              key="slack"
+              to="https://join.slack.com/t/boomerang-io/shared_invite/zt-pxo2yw2o-c3~6YvWkKNrKIwhIBAKhaw"
+            >
+              <NavigationMenuLink className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
+                <span className="sr-only">"Chat on Slack"</span>
+                <img
+                  aria-hidden
+                  style={{ width: `24px`, height: `24px` }}
+                  src="/logo/slack.svg"
+                />
+              </NavigationMenuLink>
+            </Link>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
     </div>
   );
 }
@@ -182,20 +211,30 @@ function MobileNav() {
           </Button>
         </SheetTrigger>
       </div>
-      <SheetContent side="left" className="pr-0">
-        <Link href="/" className="flex items-center">
-          {/* <Icons.logo className="mr-2 h-4 w-4" /> */}
+      <SheetContent side="left" className="">
+        <Link to="/" className="flex items-center">
           <span className="font-bold">{siteConfig.name}</span>
         </Link>
-        <ScrollArea className="my-4 h-[calc(100vh-8rem)] pb-10 pl-6">
+        <ScrollArea className="my-4 h-[calc(100vh-8rem)] pb-10 px-3">
           <div className="flex flex-col space-y-3">
-            {navConfig.mainNav?.map(
-              (item) =>
-                item.href && (
-                  <Link key={item.href} to={item.href}>
+            {navConfig.mainNav?.map((item) =>
+              item.children && item.children.length > 0 ? (
+                <>
+                  <Label className="text-sm text-muted-foreground font-light">
                     {item.title}
-                  </Link>
-                )
+                  </Label>
+                  <Separator />
+                  {item.children.map((child, index) => (
+                    <Link key={index} to={child.href} className="pl-5">
+                      {child.title}
+                    </Link>
+                  ))}
+                </>
+              ) : (
+                <Link key={item.href} to={item.href}>
+                  {item.title}
+                </Link>
+              )
             )}
           </div>
         </ScrollArea>
