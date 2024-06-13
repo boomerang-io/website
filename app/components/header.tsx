@@ -29,6 +29,7 @@ import {
 } from "~/components/ui/navigation-menu";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
+import { docConfig } from "~/config/doc";
 
 type HeaderProps = {
   className?: string;
@@ -37,21 +38,15 @@ type HeaderProps = {
     latestVersion?: string;
     releaseBranch?: string;
     branches?: string[];
-    currentGitHubRef?: string;
+    currentRef?: string;
     lang?: string;
   };
 };
 
 export function Header({ className, versionData }: HeaderProps) {
   let navigate = useNavigate();
-  let {
-    versions,
-    latestVersion,
-    releaseBranch,
-    branches,
-    currentGitHubRef,
-    lang,
-  } = versionData || {};
+  let { versions, latestVersion, releaseBranch, currentRef, branches, lang } =
+    versionData || {};
 
   return (
     <header
@@ -74,7 +69,7 @@ export function Header({ className, versionData }: HeaderProps) {
             <nav className="flex items-center text-sm">
               <Select
                 onValueChange={(v) => navigate(`/docs/${lang}/` + v)}
-                defaultValue={currentGitHubRef}
+                defaultValue={currentRef}
               >
                 <SelectTrigger
                   id="version"
@@ -99,12 +94,13 @@ export function Header({ className, versionData }: HeaderProps) {
                   <SelectGroup>
                     {versions && versions?.length > 0 && (
                       <SelectLabel className="text-sm text-muted-foreground font-light">
-                        Tags
+                        Versions
                       </SelectLabel>
                     )}
                     <SelectSeparator />
                     {versions?.map((version) => (
                       <SelectItem key={version} value={version}>
+                        {/* Strip the prefix from the tag name to show in the dropdown */}
                         {version}
                       </SelectItem>
                     ))}
@@ -240,24 +236,5 @@ function MobileNav() {
         </ScrollArea>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function BookIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-    </svg>
   );
 }

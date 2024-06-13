@@ -7,7 +7,7 @@ import { env } from "~/utils/env.server";
  * Fetches the contents of a file in a repository or from your local disk.
  *
  * @param ref The GitHub ref, use `"local"` for local docs development
- * @param filepath The filepath inside the repo (including "docs/")
+ * @param filepath The filepath inside the repo
  * @returns The text of the file
  */
 export async function getRepoContent(
@@ -34,7 +34,7 @@ export async function getRepoContent(
  * Fetches the contents of a file in a repository or from your local disk.
  *
  * @param ref The GitHub ref, use `"local"` for local docs development
- * @param filepath The filepath inside the repo (including "docs/")
+ * @param filepath The filepath inside the repo
  * @returns raw image
  */
 export async function getRepoImage(
