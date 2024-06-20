@@ -26,7 +26,6 @@ import {
 } from "~/utils/github";
 import type { Doc } from "~/utils/github";
 import { octokit } from "~/utils/github.server";
-import { env } from "~/utils/env.server";
 import { CACHE_CONTROL } from "~/utils/http.server";
 import { VersionWarningMessage } from "~/components/version-warning-message";
 import { siteConfig } from "~/config/site";
