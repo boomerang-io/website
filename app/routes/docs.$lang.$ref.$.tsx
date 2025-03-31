@@ -37,7 +37,12 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   let ogImageUrl = baseUrl + "/img/og.1.jpg";
   invariant(params.ref, "expected `ref` params");
   //Handle Images
-  if (params["*"]?.endsWith(".png") || params["*"]?.endsWith(".svg")) {
+  if (
+    params["*"]?.endsWith(".png") ||
+    params["*"]?.endsWith(".svg") ||
+    params["*"]?.endsWith(".gif")
+  ) {
+    console.log("Redirecting to image: ", params["*"]);
     throw redirect(`/docs/${params.lang}/${params.ref}/images/${params["*"]}`);
   }
   //Continue processing docs

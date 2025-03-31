@@ -14,15 +14,23 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     console.log("Retrieving image: ", slug);
     let image = await getRepoImage(params.ref, slug);
     if (!image) throw null;
+
+    // Determine the content type based on the file extension
+    let contentType = "image/png"; // Default to PNG
+    if (params["*"]?.endsWith(".svg")) contentType = "image/svg+xml";
+    if (params["*"]?.endsWith(".gif")) contentType = "image/gif";
+
     return new Response(image, {
       headers: {
-        "Content-Type": "image/png",
-        // starting with 1 day, may need to be longer as these images don't change often
+        "Content-Type": contentType,
+        // starting with 1 day, may need to be lo
+        // nger as these images don't change often
         // could also make it dependent on the date of the post
         "Cache-Control": `max-age=${60 * 60 * 24}`,
       },
     });
   } catch (_) {
+    console.log("Image not found: ", params["*"]);
     if (params.ref === "main" && params["*"]) {
       // Only perform redirects for 404's on `main` URLs which are likely being
       // redirected from the root `/docs/{slug}`.  If someone is direct linking
