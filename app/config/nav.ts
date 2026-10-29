@@ -15,7 +15,6 @@ interface NavConfig {
 export const navConfig: NavConfig = {
   mainNav: [
     { title: "Flow", href: "/flow" },
-    { title: "Bosun", href: "/docs/bosun" },
     { title: "Docs", href: "/docs" },
     { title: "GitHub", href: siteConfig.github.repoUrl, external: true },
   ],

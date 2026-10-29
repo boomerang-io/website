@@ -69,6 +69,7 @@ Loaders return plain objects or `data(value, init)`; components read them with `
 - `components/ui/` holds the shadcn/ui components still in use (button with `lg` and `inverse` variants, select, sheet, badge, card). The `cn` helper is in `~/utils/theme`. `~/*` maps to `app/*`.
 - `components/header.tsx` and `footer.tsx` read their links from `config/nav.ts`. In the docs layout the header also gets `versionData` and shows the product and version switchers.
 - Pages: `_index.tsx` (hero diagram from `components/flow-diagram.tsx`, projects, community), `flow._index.tsx` under the `flow.tsx` layout, `about.tsx`. `/flow/try` (the retired Backstop sandbox) redirects through `_redirects`.
+- Docs: the layout route draws the sidebar menu, the phone menu bar (product · category over the page title) and the docs footer; the page route adds the breadcrumb (from `findMenuCategory`) and the "On this page" lists, which highlight the section in view. All markdown styling is in `styles/docs.css` under `.md-prose`: code blocks are dark ink with a language bar drawn from `data-language`, the syntax colours are the `--baseXX` variables there, screenshots (non-SVG images) get a frame, and `docs-info`/`docs-warning`/`docs-success`/`docs-error` and blockquotes are tinted boxes.
 - Copy follows the Flow docs' voice: Workflow, Task and Team capitalised, and the odd Boomerang-ism ("without writing a single line of code... unless you really want to!", "bring a script, bring a container").
 
 ### Code style

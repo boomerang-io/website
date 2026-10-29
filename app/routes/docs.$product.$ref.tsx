@@ -31,6 +31,7 @@ import { octokit } from "~/utils/github.server";
 import { CACHE_CONTROL } from "~/utils/http.server";
 import { VersionWarningMessage } from "~/components/version-warning-message";
 import { siteConfig } from "~/config/site";
+import type { MenuDoc } from "~/utils/github/docs";
 import { docConfig, getGitHubRef, getProduct } from "~/config/doc";
 import { Header } from "~/components/header";
 import { Badge } from "~/components/ui/badge";
@@ -113,22 +114,10 @@ export default function DocsLayout() {
     // TODO: we should have `transition.params`
     !navigation.location!.pathname.match(params.ref);
 
-  let location = useLocation();
-  let detailsRef = React.useRef<HTMLDetailsElement>(null);
-
-  React.useEffect(() => {
-    let details = detailsRef.current;
-    if (details && details.hasAttribute("open")) {
-      details.removeAttribute("open");
-    }
-  }, [location]);
-
-  let docsContainer = React.useRef<HTMLDivElement>(null);
-
   let versionData = useLoaderData<typeof loader>();
 
   return (
-    <div className="[--header-height:theme(spacing.16)] [--nav-width:theme(spacing.72)]">
+    <div className="[--header-height:theme(spacing.16)] [--nav-width:280px]">
       <div className="sticky top-0 z-20">
         <Header versionData={versionData} />
         <VersionWarning />
@@ -141,58 +130,58 @@ export default function DocsLayout() {
             : undefined
         }
       >
-        <InnerContainer>
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-8">
           <div className="block lg:flex">
             <NavMenuDesktop />
             <div
-              ref={docsContainer}
               className={cx(
                 // add scroll margin to focused elements so that they aren't
                 // obscured by the sticky header
                 "[&_*:focus]:scroll-mt-[8rem] lg:[&_*:focus]:scroll-mt-[5rem]",
                 // Account for the left navbar
-                "min-h-[80vh] lg:ml-3 lg:w-[calc(100%-var(--nav-width))]",
-                "lg:pl-6 xl:pl-10 2xl:pl-12",
+                "min-h-[80vh] min-w-0 lg:w-[calc(100%-var(--nav-width))] lg:pl-10 xl:pl-14",
                 !changingVersions && navigating
                   ? "opacity-25 transition-opacity delay-300"
                   : ""
               )}
             >
               <Outlet />
-              <div className="pt-8 sm:pt-10 lg:pt-12">
-                <Footer />
+              <div className="max-w-[760px] pb-16">
+                <DocsFooter />
               </div>
             </div>
           </div>
-        </InnerContainer>
+        </div>
       </div>
     </div>
   );
 }
 
-function Footer() {
+/**
+ * The menu category a page sits in, for the breadcrumb and the phone menu bar.
+ */
+export function findMenuCategory(
+  menu: MenuDoc[] | undefined,
+  splat: string | undefined
+): string | undefined {
+  if (!menu || !splat) return undefined;
+  return menu.find(
+    (category) =>
+      category.slug === splat ||
+      category.children.some((doc) => doc.slug === splat)
+  )?.attrs.title;
+}
+
+function DocsFooter() {
   return (
-    <div className="place-content-center flex justify-between gap-4 border-t border-t-gray-50 py-4 text-sm text-gray-400 dark:border-gray-800">
-      <div className="sm:flex sm:items-center sm:gap-2 lg:gap-4">
-        <div>
-          &copy; 2024{" "}
-          <a className="hover:underline" href={siteConfig.url}>
-            {siteConfig.project}
-          </a>
-          . All rights reserved.
-        </div>
-        <div className="hidden sm:block">•</div>
-        <div>
-          Docs and examples licensed under{" "}
-          <a className="hover:underline" href={siteConfig.license.url}>
-            {siteConfig.license.name}
-          </a>
-        </div>
-        <div className="hidden sm:block">•</div>
-        <div>
-          <EditLink />
-        </div>
-      </div>
+    <div className="flex flex-wrap justify-between gap-x-6 gap-y-3 border-t border-brand-line pt-6 text-[15px]">
+      <EditLink />
+      <span className="text-brand-muted">
+        Docs and examples licensed under{" "}
+        <a className="hover:underline" href={siteConfig.license.url}>
+          {siteConfig.license.name}
+        </a>
+      </span>
     </div>
   );
 }
@@ -204,41 +193,52 @@ function VersionWarning() {
   if (isLatest) return null;
 
   return (
-    <div className="text-center">
-      <div className="p-2 bg-[#0072c3] text-xs text-white">
-        <VersionWarningMessage
-          branches={branches}
-          currentRef={currentRef}
-          latestPath={`/docs/${product}/${releaseBranch}`}
-          splat={splat}
-        />
-      </div>
+    <div className="bg-brand-ink px-4 py-2.5 text-center text-sm text-white">
+      <VersionWarningMessage
+        branches={branches}
+        currentRef={currentRef}
+        latestPath={`/docs/${product}/${releaseBranch}`}
+        splat={splat}
+      />
     </div>
+  );
+}
+
+function Chevron({ open }: { open?: boolean }) {
+  return (
+    <svg aria-hidden className="h-4 w-4 shrink-0 text-brand-muted">
+      <use href={`${iconsHref}#${open ? "chevron-d" : "chevron-r"}`} />
+    </svg>
   );
 }
 
 function NavMenuMobile() {
   let doc = useDoc();
+  let { menu, product, products } = useLoaderData<typeof loader>();
+  let { "*": splat } = useParams();
+  let productTitle = products.find(({ key }) => key === product)?.title;
+  let category = findMenuCategory(menu, splat);
+
   return (
     <div className="lg:hidden">
-      <DetailsMenu className="group relative flex h-full flex-col">
-        <summary
-          tabIndex={0}
-          className="_no-triangle flex cursor-pointer select-none items-center gap-2 border-b border-gray-50 bg-white px-2 py-3 text-sm font-medium hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700"
-        >
-          <div className="flex items-center gap-2">
-            <svg aria-hidden className="h-5 w-5 group-open:hidden">
-              <use href={`${iconsHref}#chevron-r`} />
-            </svg>
-            <svg aria-hidden className="hidden h-5 w-5 group-open:block">
-              <use href={`${iconsHref}#chevron-d`} />
-            </svg>
-          </div>
-          <div className="whitespace-nowrap font-bold">
-            {doc ? doc.attrs.title : "Navigation"}
-          </div>
+      <DetailsMenu className="group/menu relative flex flex-col">
+        <summary className="_no-triangle flex min-h-[52px] cursor-pointer select-none items-center justify-between gap-3 border-b border-brand-line bg-[#F7F9FB] px-4">
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate font-mono text-[11px] uppercase tracking-[0.12em] text-brand-muted">
+              {[productTitle, category].filter(Boolean).join(" · ")}
+            </span>
+            <span className="truncate font-semibold">
+              {doc ? doc.attrs.title : "Navigation"}
+            </span>
+          </span>
+          <span className="group-open/menu:hidden">
+            <Chevron />
+          </span>
+          <span className="hidden group-open/menu:block">
+            <Chevron open />
+          </span>
         </summary>
-        <div className="absolute h-[66vh] w-full overflow-auto overscroll-contain border-b bg-white p-2 pt-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900 dark:shadow-black">
+        <div className="absolute inset-x-0 top-full max-h-[70vh] overflow-auto overscroll-contain border-b border-brand-line bg-white px-4 py-4 shadow-xl">
           <Menu />
         </div>
       </DetailsMenu>
@@ -250,7 +250,7 @@ function NavMenuDesktop() {
   return (
     <div
       className={cx(
-        "sticky bottom-0 top-16 -ml-3 hidden w-[--nav-width] flex-col gap-3 self-start overflow-auto pb-10 pr-5 pt-5 lg:flex",
+        "sticky top-16 hidden w-[--nav-width] shrink-0 flex-col self-start overflow-auto border-r border-brand-line pb-10 pr-5 pt-8 lg:flex",
         // Account for the height of the top nav
         "h-[calc(100vh-var(--header-height))]"
       )}
@@ -266,8 +266,8 @@ function Menu() {
   let { menu } = useLoaderData<typeof loader>();
 
   return menu ? (
-    <nav>
-      <ul>
+    <nav aria-label="Documentation">
+      <ul className="flex flex-col gap-1">
         {menu.map((category) => {
           // Technically we can have a category that has content (and thus
           // needs it's own link) _and_ has children, so needs to be a details
@@ -279,7 +279,7 @@ function Menu() {
             : "details";
 
           return (
-            <li key={category.attrs.title} className="mb-3">
+            <li key={category.attrs.title}>
               {menuCategoryType === "link" ? (
                 <MenuSummary as="div">
                   <MenuCategoryLink to={category.slug}>
@@ -287,7 +287,7 @@ function Menu() {
                   </MenuCategoryLink>
                 </MenuSummary>
               ) : (
-                <MenuCategoryDetails className="group" slug={category.slug}>
+                <MenuCategoryDetails className="group/category" slug={category.slug}>
                   <MenuSummary>
                     {menuCategoryType === "linkAndDetails" ? (
                       <MenuCategoryLink to={category.slug}>
@@ -296,28 +296,27 @@ function Menu() {
                     ) : (
                       category.attrs.title
                     )}
-                    <svg aria-hidden className="h-5 w-5 group-open:hidden">
-                      <use href={`${iconsHref}#chevron-r`} />
-                    </svg>
-                    <svg
-                      aria-hidden
-                      className="hidden h-5 w-5 group-open:block"
-                    >
-                      <use href={`${iconsHref}#chevron-d`} />
-                    </svg>
+                    <span className="group-open/category:hidden">
+                      <Chevron />
+                    </span>
+                    <span className="hidden group-open/category:block">
+                      <Chevron open />
+                    </span>
                   </MenuSummary>
-                  {category.children.map((doc) => {
-                    return (
-                      <MenuLink key={doc.slug} to={doc.slug}>
-                        {doc.attrs.title}{" "}
-                        {doc.attrs.tag && (
-                          <Badge variant="default" className="!font-normal">
-                            {doc.attrs.tag}
-                          </Badge>
-                        )}
-                      </MenuLink>
-                    );
-                  })}
+                  <ul className="mb-2 ml-3 mt-1 flex flex-col gap-0.5 border-l border-brand-line pl-3">
+                    {category.children.map((doc) => (
+                      <li key={doc.slug}>
+                        <MenuLink to={doc.slug}>
+                          {doc.attrs.title}
+                          {doc.attrs.tag && (
+                            <Badge variant="outline" className="font-mono !font-normal">
+                              {doc.attrs.tag}
+                            </Badge>
+                          )}
+                        </MenuLink>
+                      </li>
+                    ))}
+                  </ul>
                 </MenuCategoryDetails>
               )}
             </li>
@@ -326,7 +325,7 @@ function Menu() {
       </ul>
     </nav>
   ) : (
-    <div className="bold text-gray-300">Failed to load menu</div>
+    <div className="text-brand-muted">Failed to load menu</div>
   );
 }
 
@@ -354,7 +353,7 @@ function MenuCategoryDetails({
 
   return (
     <details
-      className={cx(className, "relative flex cursor-pointer flex-col")}
+      className={cx(className, "relative flex flex-col")}
       open={isOpen}
       onToggle={(e) => {
         // Synchronize the DOM's state with React state to prevent the
@@ -377,24 +376,18 @@ function MenuSummary({
   as?: "summary" | "div";
 }) {
   const sharedClassName =
-    "rounded-2xl px-3 py-3 transition-colors duration-100";
-  const wrappedChildren = (
-    <div className="flex h-5 w-full items-center justify-between text-base font-semibold leading-[1.125]">
-      {children}
-    </div>
-  );
+    "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 text-[15px] font-semibold text-brand-ink";
 
   if (as === "summary") {
     return (
       <summary
         className={cx(
           sharedClassName,
-          "_no-triangle block select-none",
-          "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-800  dark:focus-visible:ring-gray-100",
-          "hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700"
+          "_no-triangle cursor-pointer select-none hover:bg-brand-canvas",
+          "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue"
         )}
       >
-        {wrappedChildren}
+        {children}
       </summary>
     );
   }
@@ -403,10 +396,10 @@ function MenuSummary({
     <div
       className={cx(
         sharedClassName,
-        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-blue-800 dark:has-[:focus-visible]:ring-gray-100"
+        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-brand-blue"
       )}
     >
-      {wrappedChildren}
+      {children}
     </div>
   );
 }
@@ -425,10 +418,8 @@ function MenuCategoryLink({
       prefetch="intent"
       to={to}
       className={cx(
-        "outline-none focus-visible:text-blue-brand dark:focus-visible:text-blue-400",
-        isActive
-          ? "text-blue-brand dark:text-blue-brand"
-          : "hover:text-blue-500"
+        "outline-none",
+        isActive ? "text-brand-teal" : "hover:text-brand-link"
       )}
     >
       {children}
@@ -442,12 +433,13 @@ function MenuLink({ to, children }: { to: string; children: React.ReactNode }) {
     <Link
       prefetch="intent"
       to={to}
+      aria-current={isActive ? "page" : undefined}
       className={cx(
-        "group relative my-px flex min-h-[2.25rem] items-center justify-between rounded-md border-transparent px-3 py-2 text-sm",
-        "outline-none transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-800  dark:focus-visible:ring-gray-100",
+        "flex items-center justify-between gap-2 rounded-md px-3 py-[7px] text-[15px]",
+        "outline-none transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue",
         isActive
-          ? ["text-black", "bg-accent"]
-          : ["text-gray-700 hover:text-black", "hover:bg-accent"]
+          ? "bg-brand-canvas font-medium text-brand-ink"
+          : "text-brand-muted hover:bg-brand-canvas hover:text-brand-ink"
       )}
     >
       {children}
@@ -466,29 +458,18 @@ function EditLink() {
 
   // doc.slug is the path in the repository, product folder included
   let [text, url] = isEditable
-    ? ["Edit on GitHub", `${repoUrl}/edit/${githubRef}/${doc.slug}.md`]
-    : ["View on GitHub", `${repoUrl}/blob/${githubRef}/${doc.slug}.md`];
+    ? ["Edit this page on GitHub →", `${repoUrl}/edit/${githubRef}/${doc.slug}.md`]
+    : ["View this page on GitHub →", `${repoUrl}/blob/${githubRef}/${doc.slug}.md`];
 
   return (
     <a
-      className="flex items-center gap-1 hover:underline"
+      className="font-medium text-brand-link hover:underline"
       href={url}
       target="_blank"
       rel="noreferrer"
     >
       {text}
-      <svg aria-hidden className="h-4 w-4">
-        <use href={`${iconsHref}#edit`} />
-      </svg>
     </a>
-  );
-}
-
-function InnerContainer({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="m-auto px-4 sm:px-6 lg:px-8 xl:max-w-[90rem]">
-      {children}
-    </div>
   );
 }
 

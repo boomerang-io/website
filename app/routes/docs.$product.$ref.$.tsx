@@ -7,6 +7,7 @@ import {
   useLoaderData,
   useParams,
   useRouteError,
+  useRouteLoaderData,
 } from "react-router";
 import type {
   HeadersFunction,
@@ -19,7 +20,11 @@ import type { Doc } from "~/utils/github";
 import { getRepoDoc } from "~/utils/github";
 import iconsHref from "~/icons.svg";
 import { useDelegatedReactRouterLinks } from "~/components/delegate-links";
-import type { loader as docsLayoutLoader } from "~/routes/docs.$product.$ref";
+import cx from "clsx";
+import {
+  findMenuCategory,
+  type loader as docsLayoutLoader,
+} from "~/routes/docs.$product.$ref";
 import type { loader as rootLoader } from "~/root";
 import { getMeta } from "~/utils/meta";
 import { docConfig, getGitHubRef, getProduct } from "~/config/doc";
@@ -136,86 +141,125 @@ export const meta: MetaFunction<Loader, MatchLoaders> = (args) => {
 
 export default function DocPage() {
   let { doc } = useLoaderData<typeof loader>();
+  let layoutData = useRouteLoaderData<typeof docsLayoutLoader>(LAYOUT_LOADER_KEY);
+  let { "*": splat } = useParams();
+  let category = findMenuCategory(layoutData?.menu, splat);
   let ref = React.useRef<HTMLDivElement>(null);
   useDelegatedReactRouterLinks(ref);
-  let showTOC = doc.attrs.toc !== false;
+  let showTOC = doc.attrs.toc !== false && doc.headings.length > 3;
 
   return (
-    <div className="xl:flex xl:w-full xl:justify-between xl:gap-8">
-      {!showTOC ? null : doc.headings.length > 3 ? (
-        <>
-          <SmallOnThisPage doc={doc} />
-          <LargeOnThisPage doc={doc} />
-        </>
+    <div className="xl:flex xl:w-full xl:justify-between xl:gap-12">
+      {showTOC ? (
+        <LargeOnThisPage doc={doc} />
       ) : (
         <div className="hidden xl:order-1 xl:block xl:w-56 xl:flex-shrink-0" />
       )}
       <div className="min-w-0 xl:flex-grow">
-        <div ref={ref} className="markdown w-full max-w-3xl pt-8 pb-[33vh]">
-          <div
-            className="md-prose"
-            dangerouslySetInnerHTML={{ __html: doc.html }}
-          />
+        <div className="max-w-[760px] pb-12 pt-10 lg:pt-12">
+          {category && (
+            // Phones show the category in the menu bar instead
+            <p className="mb-5 hidden font-mono text-xs uppercase tracking-[0.12em] text-brand-muted lg:block">
+              {category} / {doc.attrs.title}
+            </p>
+          )}
+          {showTOC && <SmallOnThisPage doc={doc} />}
+          <div ref={ref} className="markdown">
+            <div
+              className="md-prose"
+              dangerouslySetInnerHTML={{ __html: doc.html }}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+/**
+ * The heading currently at the top of the reading area, for the "On this page" highlight.
+ */
+function useActiveHeading(slugs: (string | undefined)[]) {
+  let [active, setActive] = React.useState<string>();
+  let key = slugs.join("|");
+
+  React.useEffect(() => {
+    let elements = key
+      .split("|")
+      .flatMap((slug) => {
+        let element = slug ? document.getElementById(slug) : null;
+        return element ? [element] : [];
+      });
+    if (elements.length === 0) return;
+
+    let observer = new IntersectionObserver(
+      (entries) => {
+        let visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      // a band just under the sticky header
+      { rootMargin: "-80px 0px -70% 0px" }
+    );
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [key]);
+
+  return active;
+}
+
+function TocLinks({ doc, className }: { doc: Doc; className?: string }) {
+  let active = useActiveHeading(doc.headings.map((heading) => heading.slug));
+  return (
+    <ul className={cx("md-toc flex flex-col gap-3 text-sm leading-[1.3]", className)}>
+      {doc.headings.map((heading, i) => (
+        <li key={i} className={heading.headingLevel === "h2" ? undefined : "pl-3.5"}>
+          <Link
+            to={`#${heading.slug}`}
+            aria-current={active === heading.slug ? "location" : undefined}
+            dangerouslySetInnerHTML={{ __html: heading.html || "" }}
+            className={
+              active === heading.slug
+                ? "font-medium text-brand-teal"
+                : "text-brand-muted hover:text-brand-ink"
+            }
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function LargeOnThisPage({ doc }: { doc: Doc }) {
   return (
-    <div className="sticky top-36 order-1 mt-20 hidden max-h-[calc(100vh-9rem)] w-56 flex-shrink-0 self-start overflow-y-auto pb-10 xl:block">
-      <nav className="mb-3 flex items-center font-semibold">On this page</nav>
-      <ul className="md-toc flex flex-col flex-wrap gap-3 leading-[1.125]">
-        {doc.headings.map((heading, i) => {
-          return (
-            <li
-              key={i}
-              className={heading.headingLevel === "h2" ? "ml-0" : "ml-4"}
-            >
-              <Link
-                to={`#${heading.slug}`}
-                dangerouslySetInnerHTML={{ __html: heading.html || "" }}
-                className={
-                  "group relative py-1 text-sm text-gray-500 decoration-gray-200 underline-offset-4 hover:underline dark:text-gray-400 dark:decoration-gray-500"
-                }
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <nav
+      aria-label="On this page"
+      className="sticky top-24 order-1 mt-14 hidden max-h-[calc(100vh-8rem)] w-56 flex-shrink-0 self-start overflow-y-auto pb-10 xl:block"
+    >
+      <p className="mb-3.5 font-mono text-xs tracking-[0.12em] text-brand-muted">
+        ON THIS PAGE
+      </p>
+      <TocLinks doc={doc} />
+    </nav>
   );
 }
 
 function SmallOnThisPage({ doc }: { doc: Doc }) {
   return (
-    <details className="group -mx-4 flex h-full flex-col sm:-mx-6 lg:mx-0 lg:mt-4 xl:ml-80 xl:hidden">
-      <summary className="_no-triangle flex cursor-pointer select-none items-center gap-2 border-b border-gray-50 bg-white px-2 py-3 text-sm font-medium hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700">
-        <div className="flex items-center gap-2">
-          <svg aria-hidden className="h-5 w-5 group-open:hidden">
-            <use href={`${iconsHref}#chevron-r`} />
-          </svg>
-          <svg aria-hidden className="hidden h-5 w-5 group-open:block">
-            <use href={`${iconsHref}#chevron-d`} />
-          </svg>
-        </div>
-        <div className="whitespace-nowrap">On this page</div>
+    <details className="group mb-6 rounded-md border border-brand-edge xl:hidden">
+      <summary className="_no-triangle flex min-h-11 cursor-pointer select-none items-center justify-between px-3.5 text-[15px] font-medium">
+        On this page
+        <svg aria-hidden className="h-4 w-4 text-brand-muted group-open:hidden">
+          <use href={`${iconsHref}#chevron-r`} />
+        </svg>
+        <svg aria-hidden className="hidden h-4 w-4 text-brand-muted group-open:block">
+          <use href={`${iconsHref}#chevron-d`} />
+        </svg>
       </summary>
-      <ul className="pl-9">
-        {doc.headings.map((heading, i) => (
-          <li
-            key={i}
-            className={heading.headingLevel === "h2" ? "ml-0" : "ml-4"}
-          >
-            <Link
-              to={`#${heading.slug}`}
-              dangerouslySetInnerHTML={{ __html: heading.html || "" }}
-              className="block py-2 text-sm text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-            />
-          </li>
-        ))}
-      </ul>
+      <nav aria-label="On this page" className="border-t border-brand-line px-3.5 py-3">
+        <TocLinks doc={doc} />
+      </nav>
     </details>
   );
 }
@@ -225,12 +269,15 @@ export function ErrorBoundary() {
   let params = useParams();
   if (isRouteErrorResponse(error)) {
     return (
-      <div className="flex h-[50vh] flex-col items-center justify-center">
-        <h1 className="text-9xl font-bold">{error.status}</h1>
-        <p className="text-lg">
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-3">
+        <h1 className="font-mono text-7xl font-medium text-brand-ink">{error.status}</h1>
+        <p className="text-lg text-brand-muted">
           {[400, 404].includes(error.status) ? (
             <>
-              There is no doc for <i className="text-gray-500">{params["*"]}</i>
+              There is no doc for{" "}
+              <code className="rounded border border-brand-line bg-brand-canvas px-1.5 font-mono text-base text-brand-ink">
+                {params["*"]}
+              </code>
             </>
           ) : (
             error.statusText
