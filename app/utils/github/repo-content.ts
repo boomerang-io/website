@@ -46,11 +46,16 @@ export async function getRepoImage(
   let [owner, repo] = repoPair.split("/");
   let pathname = `/${owner}/${repo}/${ref}/${filepath}`;
   console.log("Fetching: ", pathname)
-  let image = await fetch(
+  let response = await fetch(
     new URL(pathname, "https://raw.githubusercontent.com/").href,
     { headers: { "User-Agent": `docs:${owner}/${repo}` } },
   );
-  return Buffer.from(await image.arrayBuffer());
+  if (!response.ok) {
+    // Need to consume for undici since it won't garbage collect
+    await response.arrayBuffer();
+    return null;
+  }
+  return Buffer.from(await response.arrayBuffer());
 }
 
 /**

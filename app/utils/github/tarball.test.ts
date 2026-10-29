@@ -1,36 +1,45 @@
-import fs from "fs";
 import path from "path";
-import { createTarFileProcessor } from "./tarball.server";
+import { createTarballStream } from "./repo-tarball";
+import { createTarFileProcessor, markdownPattern } from "./tarball.server";
+import { getFixtureStream } from "./docs.test";
 
 describe("createTarFileProcessor", () => {
-  it("extracts and processes files one-by-one", async () => {
-    let fixturePath = path.join(process.cwd(), "test/fixture.tar.gz");
-    let stream = fs.createReadStream(fixturePath);
+  it("extracts and processes the markdown files of one folder", async () => {
+    let processFiles = createTarFileProcessor(
+      getFixtureStream(),
+      markdownPattern("docs"),
+    );
+    let docs: string[] = [];
+    await processFiles(async ({ filename, content }) => {
+      expect(content).toMatch(/^---\ntitle: /);
+      docs.push(filename);
+    });
 
-    let processFiles = createTarFileProcessor(stream);
+    expect(docs.sort()).toMatchInlineSnapshot(`
+      [
+        "docs/components/index.md",
+        "docs/components/link.md",
+        "docs/components/router.md",
+        "docs/index.md",
+        "docs/pages/index.md",
+        "docs/pages/overview.md",
+        "docs/pages/tutorial.md",
+      ]
+    `);
+  });
+
+  it("reads a local checkout the same way", async () => {
+    let stream = createTarballStream(path.join(__dirname, "__test__"), "bosun");
+    let processFiles = createTarFileProcessor(stream, markdownPattern("bosun"));
     let docs: string[] = [];
     await processFiles(async ({ filename }) => {
       docs.push(filename);
     });
 
-    expect(docs).toMatchInlineSnapshot(`
-      [
-        "docs/api.md",
-        "docs/contributing.md",
-        "docs/faq.md",
-        "docs/getting-started/concepts.md",
-        "docs/getting-started/index.md",
-        "docs/getting-started/installation.md",
-        "docs/getting-started/overview.md",
-        "docs/getting-started/tutorial.md",
-        "docs/guides/index.md",
-        "docs/guides/ssr.md",
-        "docs/guides/testing.md",
-        "docs/index.md",
-        "docs/upgrading/index.md",
-        "docs/upgrading/reach.md",
-        "docs/upgrading/v5.md",
-      ]
-    `);
+    expect(docs.sort()).toEqual([
+      "bosun/index.md",
+      "bosun/introduction/index.md",
+      "bosun/introduction/overview.md",
+    ]);
   });
 });

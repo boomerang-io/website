@@ -1,66 +1,50 @@
-import followRedirects from "follow-redirects";
-import fs from "fs";
 import path from "path";
-import tar from "tar";
+import { Readable } from "stream";
+import type { ReadableStream } from "stream/web";
+import * as tar from "tar";
 import invariant from "tiny-invariant";
-import { docConfig } from "~/config/doc";
 import { env } from "~/utils/env.server";
 
 /**
  * Fetches a repo tarball from GitHub or your local repo as a tarball in
  * development.
  *
- * @param ref GitHub ref (main, v6.0.0, etc.) use "local" for local repo.
+ * @param ref GitHub ref (main, flow@4.0.0, etc.) use "local" for local repo.
+ * @param pathToDocs The product's folder, the only part of a local repo that is packed.
  * @returns The repo tarball
  */
 export async function getRepoTarballStream(
   repo: string,
   ref: string,
+  pathToDocs: string,
 ): Promise<NodeJS.ReadableStream> {
   if (ref === "local") {
     console.log("Using local repo");
-    return getLocalTarballStream();
+    invariant(
+      env.LOCAL_REPO_RELATIVE_PATH,
+      "LOCAL_REPO_RELATIVE_PATH is not set",
+    );
+    return createTarballStream(
+      path.join(process.cwd(), env.LOCAL_REPO_RELATIVE_PATH),
+      pathToDocs,
+    );
   }
 
-  let agent = new followRedirects.https.Agent({ keepAlive: true });
   let tarballURL = `https://github.com/${repo}/archive/${ref}.tar.gz`;
-  let { hostname, pathname } = new URL(tarballURL);
-  let options = { agent: agent, hostname: hostname, path: pathname };
-
-  try {
-    let res = await get(options);
-    if (res.statusCode === 200) {
-      return res;
-    }
-    throw new Error(`Could not fetch ${tarballURL}`);
-  } catch (err) {
-    throw new Error(`Could not fetch ${tarballURL}`);
+  let response = await fetch(tarballURL);
+  if (!response.ok || !response.body) {
+    throw new Error(`Could not fetch ${tarballURL}: ${response.status}`);
   }
+  return Readable.fromWeb(response.body as ReadableStream);
 }
 
 /**
- * Creates a tarball out of your local source repository so that the rest of the
- * code in this app can continue to work the same for local dev as in
- * production.
+ * Packs a folder of a local checkout with the same "<root>/<folder>/..." layout as a GitHub
+ * archive, so the rest of the code works the same for local dev as in production.
  */
-export async function getLocalTarballStream(): Promise<NodeJS.ReadableStream> {
-
-  invariant(
-    env.LOCAL_REPO_RELATIVE_PATH,
-    "LOCAL_REPO_RELATIVE_PATH is not set",
-  );
-  let localDocsPath = path.join(
-    process.cwd(),
-    env.LOCAL_REPO_RELATIVE_PATH,
-    `${docConfig.pathToDocs}`,
-  );
-  await tar.c({ gzip: true, file: ".local.tgz" }, [localDocsPath]);
-  return fs.createReadStream(".local.tgz");
-}
-
-// FIXME: I don't know the types here
-function get(options: any): any {
-  return new Promise((accept, reject) => {
-    followRedirects.https.get(options, accept).on("error", reject);
-  });
+export function createTarballStream(
+  cwd: string,
+  folder: string,
+): NodeJS.ReadableStream {
+  return Readable.from(tar.create({ gzip: true, cwd, prefix: "local" }, [folder]));
 }

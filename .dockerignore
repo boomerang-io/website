@@ -1,5 +1,18 @@
-node_modules
-
-/.cache
-/build
+# The build stage needs the sources (app/, public/, _redirects, the Vite/react-router/tsconfig/
+# tailwind/postcss files, package.json + pnpm-lock.yaml + pnpm-workspace.yaml). Everything else
+# only bloats the build context, or is regenerated inside the image (node_modules, build/).
+**/node_modules
+build
+.react-router
+.cache
+.git
+.github
+.vscode
+*.md
+**/__test__
+.local.tgz
+Dockerfile
+.dockerignore
+# Local dev only. Real deployments pass environment variables.
 .env
+.env.*

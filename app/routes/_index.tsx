@@ -1,5 +1,5 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link, json, useLoaderData } from "@remix-run/react";
+import type { MetaFunction } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
 import {
@@ -58,16 +58,16 @@ export async function loader() {
   const data = await response.json();
   if (data.message) {
     console.error(data);
-    return json({});
+    return [];
   }
   console.log(data);
   if (data.data.organization.repositories.edges) {
     const repos = data.data.organization.repositories.edges.map(
       (edge: RepoEdge) => edge.node
     );
-    return json(repos);
+    return repos as RepoNode[];
   } else {
-    return json({});
+    return [];
   }
 }
 
@@ -258,7 +258,7 @@ export default function Index() {
                   </Link>
                   <Link
                     className="inline-flex items-center justify-center rounded-md border border-gray-200 border-gray-200 bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-800 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-300"
-                    to="/bosun/docs"
+                    to="/docs/bosun"
                   >
                     Documentation
                   </Link>

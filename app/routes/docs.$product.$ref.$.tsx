@@ -1,33 +1,30 @@
 import * as React from "react";
 import {
   Link,
+  data,
   isRouteErrorResponse,
+  redirect,
   useLoaderData,
-  useMatches,
   useParams,
   useRouteError,
-} from "@remix-run/react";
-import { json, redirect } from "@remix-run/node";
+} from "react-router";
 import type {
   HeadersFunction,
   LoaderFunctionArgs,
-  SerializeFrom,
-} from "@remix-run/node";
-import type { MetaFunction } from "@remix-run/react";
+  MetaFunction,
+} from "react-router";
 import { CACHE_CONTROL, handleRedirects } from "~/utils/http.server";
 import invariant from "tiny-invariant";
 import type { Doc } from "~/utils/github";
 import { getRepoDoc } from "~/utils/github";
 import iconsHref from "~/icons.svg";
 import { useDelegatedReactRouterLinks } from "~/components/delegate-links";
-import {
-  useGitHubRef,
-  type loader as docsLayoutLoader,
-} from "~/routes/docs.$lang.$ref";
+import type { loader as docsLayoutLoader } from "~/routes/docs.$product.$ref";
 import type { loader as rootLoader } from "~/root";
 import { getMeta } from "~/utils/meta";
-import { docConfig } from "~/config/doc";
+import { docConfig, getGitHubRef, getProduct } from "~/config/doc";
 import { siteConfig } from "~/config/site";
+import { isImage } from "~/routes/docs.$product.$ref.images.$";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   let url = new URL(request.url);
@@ -36,35 +33,35 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   //TODO - figure out og.1.jpg
   let ogImageUrl = baseUrl + "/img/og.1.jpg";
   invariant(params.ref, "expected `ref` params");
-  //Handle Images
-  if (
-    params["*"]?.endsWith(".png") ||
-    params["*"]?.endsWith(".svg") ||
-    params["*"]?.endsWith(".gif")
-  ) {
+  let product = getProduct(params.product);
+  // Not a product: the layout loader redirects to the canonical URL.
+  if (!product) throw data(null, { status: 404 });
+
+  // Markdown images are relative to the page, so they arrive here: hand them to the image route.
+  if (isImage(params["*"])) {
     console.log("Redirecting to image: ", params["*"]);
-    throw redirect(`/docs/${params.lang}/${params.ref}/images/${params["*"]}`);
+    throw redirect(`/docs/${product}/${params.ref}/images/${params["*"]}`);
   }
-  //Continue processing docs
+
+  let { pathToDocs, releaseBranch } = docConfig.products[product];
   try {
-    let pathPrefix = docConfig.pathToDocs ? `${docConfig.pathToDocs}/` : "";
     let slug = params["*"]?.endsWith("/changelog")
       ? "CHANGELOG"
-      : `${pathPrefix}${params["*"] || "index"}`;
-    let doc = await getRepoDoc(useGitHubRef(params.ref), slug);
+      : `${pathToDocs}/${params["*"] || "index"}`;
+    let doc = await getRepoDoc(getGitHubRef(product, params.ref), slug);
     if (!doc) throw null;
-    return json(
+    return data(
       { doc, siteUrl, ogImageUrl },
       { headers: { "Cache-Control": CACHE_CONTROL.DEFAULT } }
     );
   } catch (_) {
-    if (params.ref === "main" && params["*"]) {
-      // Only perform redirects for 404's on `main` URLs which are likely being
+    if (params.ref === releaseBranch && params["*"]) {
+      // Only perform redirects for 404's on the release branch, which are likely being
       // redirected from the root `/docs/{slug}`.  If someone is direct linking
       // to a missing slug on an old version or tag, then a 404 feels appropriate.
       handleRedirects(`/docs/${params["*"]}`);
     }
-    throw json(null, { status: 404 });
+    throw data(null, { status: 404 });
   }
 }
 
@@ -75,7 +72,7 @@ export const headers: HeadersFunction = ({ loaderHeaders }) => {
   return headers;
 };
 
-const LAYOUT_LOADER_KEY = "routes/docs.$lang.$ref";
+const LAYOUT_LOADER_KEY = "routes/docs.$product.$ref";
 
 type Loader = typeof loader;
 type MatchLoaders = {
@@ -90,21 +87,16 @@ export const meta: MetaFunction<Loader, MatchLoaders> = (args) => {
     (match) => match.id === LAYOUT_LOADER_KEY
   )?.data;
   let rootData = args.matches.find((match) => match.id === "root")?.data;
-  if (process.env.NODE_ENV !== "development") {
-    invariant(
-      parentData && "latestVersion" in parentData,
-      "No parent data found"
-    );
-  }
   invariant(rootData && "isProductionHost" in rootData, "No root data found");
 
-  if (!data) {
+  if (!data || !parentData) {
     return [{ title: "Not Found" }];
   }
 
   let { doc } = data;
 
-  let { latestVersion, releaseBranch, branches, currentRef } = parentData;
+  let { latestVersion, releaseBranch, branches, currentRef, product } =
+    parentData;
 
   let titleAppend =
     currentRef === releaseBranch || currentRef === latestVersion
@@ -127,14 +119,14 @@ export const meta: MetaFunction<Loader, MatchLoaders> = (args) => {
   let { siteUrl, ogImageUrl } = data;
 
   return getMeta({
-    title: `${title} | ${siteConfig.name}`,
+    title: `${title} | ${docConfig.products[product].title}`,
     description: `${description}`,
     siteUrl,
     image: ogImageUrl,
     additionalMeta: [
       { name: "og:type", content: "article" },
       { name: "og:site_name", content: `${siteConfig.name}` },
-      { name: "docsearch:language", content: args.params.lang || "en" },
+      { name: "docsearch:language", content: "en" },
       { name: "docsearch:version", content: args.params.ref || "v1" },
       { name: "robots", content: robots },
       { name: "googlebot", content: robots },
@@ -170,7 +162,7 @@ export default function DocPage() {
   );
 }
 
-function LargeOnThisPage({ doc }: { doc: SerializeFrom<Doc> }) {
+function LargeOnThisPage({ doc }: { doc: Doc }) {
   return (
     <div className="sticky top-36 order-1 mt-20 hidden max-h-[calc(100vh-9rem)] w-56 flex-shrink-0 self-start overflow-y-auto pb-10 xl:block">
       <nav className="mb-3 flex items-center font-semibold">On this page</nav>
@@ -196,7 +188,7 @@ function LargeOnThisPage({ doc }: { doc: SerializeFrom<Doc> }) {
   );
 }
 
-function SmallOnThisPage({ doc }: { doc: SerializeFrom<Doc> }) {
+function SmallOnThisPage({ doc }: { doc: Doc }) {
   return (
     <details className="group -mx-4 flex h-full flex-col sm:-mx-6 lg:mx-0 lg:mt-4 xl:ml-80 xl:hidden">
       <summary className="_no-triangle flex cursor-pointer select-none items-center gap-2 border-b border-gray-50 bg-white px-2 py-3 text-sm font-medium hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700">

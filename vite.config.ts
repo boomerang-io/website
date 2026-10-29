@@ -1,16 +1,26 @@
-import { vitePlugin as remix } from "@remix-run/dev";
-import { installGlobals } from "@remix-run/node";
+/// <reference types="vitest/config" />
+import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
-import path from "path"
 
-installGlobals();
-
-export default defineConfig({
-  plugins: [remix(), tsconfigPaths()],
+export default defineConfig(({ command }) => ({
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./app"),
+    tsconfigPaths: true,
+  },
+  // The build bundles every dependency into build/server, so the runtime image carries only the
+  // serving packages in package.json `dependencies` (see the Dockerfile). The dev server loads
+  // dependencies through Node as usual.
+  ssr: {
+    noExternal: command === "build" ? true : undefined,
+  },
+  // vitest runs the utils directly, not through the router.
+  plugins: [!process.env.VITEST && reactRouter()],
+  test: {
+    globals: true,
+    environment: "node",
+    include: ["app/**/*.test.ts"],
+    // app/utils/env.server.ts validates at import time.
+    env: {
+      SOURCE_REPO: "boomerang-io/docs",
     },
   },
-});
+}));

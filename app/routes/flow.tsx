@@ -1,7 +1,6 @@
-import { Link, Outlet } from "@remix-run/react";
+import { Outlet } from "react-router";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
-import FlowLogo from "~/components/images/FlowLogo";
 
 export default function About() {
   return (

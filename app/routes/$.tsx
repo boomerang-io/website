@@ -1,6 +1,6 @@
 import { handleRedirects } from "~/utils/http.server";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { redirect, json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "react-router";
+import { redirect, data } from "react-router";
 import { getRepoDoc } from "~/utils/github";
 import { docConfig } from "~/config/doc";
 
@@ -45,7 +45,7 @@ function handleStaticFileRequests(param: string | undefined) {
   if (
     SAFE_STATIC_FILE_EXTENSIONS.some((ext) => !!(param && param.endsWith(ext)))
   ) {
-    throw json({}, { status: 404 });
+    throw data({}, { status: 404 });
   }
 }
 
@@ -54,18 +54,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   handleStaticFileRequests(params["*"]);
 
   try {
-    let ref = "main";
-    let lang = "en";
-    let doc = await getRepoDoc(ref, `${docConfig.pathToDocs}/${params["*"]}`);
+    let product = docConfig.defaultProduct;
+    let { pathToDocs, releaseBranch: ref } = docConfig.products[product];
+    let doc = await getRepoDoc(ref, `${pathToDocs}/${params["*"]}`);
     if (!doc) throw null;
     // FIXME: This results in two fetches, as the loader for the docs page will
     // repeat the request cycle. This isn't a problem if the doc is in the LRU
     // cache but we should probably fix it anyway.
-    return redirect(`/docs/${lang}/${ref}/${params["*"]}`);
-  } catch (_) {}
-  throw json({}, { status: 404 });
+    return redirect(`/docs/${product}/${ref}/${params["*"]}`);
+  } catch {
+    // not a doc either
+  }
+  throw data({}, { status: 404 });
 };
 
-export default function () {
+export default function CatchAll() {
   return null;
 }

@@ -1,5 +1,6 @@
-import { LoaderFunctionArgs, json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "react-router";
 import {
+  data,
   Links,
   Meta,
   Outlet,
@@ -9,7 +10,7 @@ import {
   useLoaderData,
   useMatches,
   useRouteError,
-} from "@remix-run/react";
+} from "react-router";
 import "~/styles/globals.css";
 import { isProductionHost, removeTrailingSlashes } from "./utils/http.server";
 import { canUseDOM } from "./utils/ui-utils";
@@ -40,7 +41,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let isDevHost = !isProductionHost(request);
   let url = new URL(request.url);
 
-  return json(
+  return data(
     {
       host: url.host,
       isProductionHost: !isDevHost,
@@ -61,7 +62,7 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-function Layout({ children, title, noIndex, isDev }: LayoutProps) {
+function Layout({ children, noIndex }: LayoutProps) {
   let matches = useMatches();
   let isDocsPage = !!matches.find((match) =>
     match.id.startsWith("routes/docs")
@@ -115,6 +116,7 @@ export function ErrorBoundary() {
             <a
               className="inline-block text-[8vw] underline:none"
               href={`https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/${error.status}`}
+              rel="noreferrer"
               target="_blank"
             >
               <h1 className="font-mono text-[25vw]">{error.status}</h1>

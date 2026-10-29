@@ -1,0 +1,4 @@
+# pnpm 11 refuses an install whose dependencies run build scripts that are not listed here.
+# esbuild (Vite 7, under @react-router/dev) installs its platform binary in postinstall.
+allowBuilds:
+  esbuild: true

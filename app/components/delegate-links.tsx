@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PrefetchPageLinks, useNavigate } from "@remix-run/react";
+import { PrefetchPageLinks, useNavigate } from "react-router";
 
 function isLinkEvent(event: MouseEvent) {
   if (!(event.target instanceof HTMLElement)) return;
@@ -13,7 +13,7 @@ function isLinkEvent(event: MouseEvent) {
   );
 }
 
-function useDelegatedReactRouterLinks(nodeRef: React.RefObject<HTMLElement>) {
+function useDelegatedReactRouterLinks(nodeRef: React.RefObject<HTMLElement | null>) {
   let navigate = useNavigate();
 
   React.useEffect(() => {

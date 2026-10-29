@@ -1,7 +1,6 @@
 import { getDoc, getMenu, getImage } from "./docs";
 import { getBranches } from "./branches";
-import { getLatestVersion, getTags } from "./tags";
-import invariant from "tiny-invariant";
+import { getTags } from "./tags";
 import type { Octokit } from "octokit";
 import { env } from "~/utils/env.server";
 
@@ -17,6 +16,8 @@ export type { Doc } from "./docs";
 
 const REPO = env.SOURCE_REPO;
 
+export const REPO_URL = `https://github.com/${REPO}`;
+
 export function getRepoTags({
   octokit,
   releasePrefix,
@@ -31,20 +32,8 @@ export function getRepoBranches({ octokit }: { octokit: Octokit }) {
   return getBranches(REPO, { octokit });
 }
 
-export async function getLatestRepoTag({
-  octokit,
-  releasePrefix,
-}: {
-  octokit: Octokit;
-  releasePrefix: string;
-}): Promise<string> {
-  let tags = await getTags(REPO, { octokit, releasePrefix });
-  invariant(tags, "Expected tags in getLatestRepoTag");
-  return getLatestVersion(tags);
-}
-
-export function getRepoDocsMenu(ref: string, lang: string) {
-  return getMenu(REPO, ref, lang);
+export function getRepoDocsMenu(ref: string, pathToDocs: string) {
+  return getMenu(REPO, ref, pathToDocs);
 }
 
 export function getRepoDoc(ref: string, slug: string) {

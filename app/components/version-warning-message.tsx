@@ -1,13 +1,15 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import * as React from "react";
 
 export function VersionWarningMessage({
   branches,
   currentRef,
+  latestPath,
   splat,
 }: {
   branches: string[];
   currentRef: string;
+  latestPath: string;
   splat?: string;
 }) {
   // Don't want to show release-next in the menu, but we do want to show
@@ -20,7 +22,7 @@ export function VersionWarningMessage({
     <>
       {warning}.{" "}
       <Link
-        to={splat ? `/docs/en/main/${splat}` : "/docs/en/main"}
+        to={splat ? `${latestPath}/${splat}` : latestPath}
         className="underline"
       >
         View latest

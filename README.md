@@ -15,14 +15,14 @@ For further details and to contribute to the broader project, head on over to ou
 
 ## Design
 
-This repository is based on our [Remix Docs Template](https://github.com/boomerang-io/remix-docs-template) and points to the [Boomerang Docs](https://github.com/boomerang-io/docs) repository. Read the route structure and configuration on the Remix Docs Template repository for more information.
+This repository is based on our [Remix Docs Template](https://github.com/boomerang-io/remix-docs-template), now on React Router 7, and points to the [Boomerang Docs](https://github.com/boomerang-io/docs) repository. Each product in that repository (Flow, Bosun) is a folder with its own release tags (`flow@4.0.0`, `bosun@1.0.0`) and is served at `/docs/<product>/<version>/...`, configured in `app/config/doc.ts`.
 
 ## Setup
 
 1. Copy the `.env.example` file and duplicate it to `.env`
 2. Fill in the required configuration options in the `.env` file
 3. Update the configuration files in the `/app/config` directory
-4. Run `pnpm install` to install the dependencies
+4. Run `pnpm install` to install the dependencies (Node 22.12 or later; `.nvmrc` pins 24)
 
 ## Development
 
@@ -32,18 +32,28 @@ Run the Vite dev server:
 pnpm run dev
 ```
 
+Run the tests, typecheck and lint:
+
+```sh
+pnpm test
+pnpm typecheck
+pnpm lint
+```
+
 ## Deployment
 
-First, build your app for production:
+Build and run the container image (Chainguard Node runtime, non-root, listening on port 3000, probe at `/health`):
+
+```sh
+docker build -t boomerang-website .
+docker run -p 3000:3000 -e SOURCE_REPO=boomerang-io/docs -e GITHUB_TOKEN=<token> boomerang-website
+```
+
+Or build and run the app directly:
 
 ```sh
 pnpm run build
-```
-
-Then run the app in production mode:
-
-```sh
 pnpm start
 ```
 
-Now you'll need to pick a host to deploy it to. We use Vercel.
+The site is hosted on [Railway](https://railway.com), which builds the `Dockerfile`.

@@ -1,6 +1,4 @@
-import { Link } from "@remix-run/react";
-import { Footer } from "~/components/footer";
-import { Header } from "~/components/header";
+import { Link } from "react-router";
 import {
   Card,
   CardContent,

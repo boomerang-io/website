@@ -1,5 +1,5 @@
 import { forwardRef, useState, useRef, useEffect } from "react";
-import { useLocation, useNavigation } from "@remix-run/react";
+import { useLocation, useNavigation } from "react-router";
 
 /**
  * An enhanced `<details>` component that's intended to be used as a menu (a bit
@@ -48,6 +48,7 @@ export const DetailsMenu = forwardRef<
   }, [isOpen]);
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- <details> is interactive
     <details
       ref={forwardedRef}
       open={open ?? isOpen}

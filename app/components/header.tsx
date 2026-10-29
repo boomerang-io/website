@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useLocation, useNavigate } from "@remix-run/react";
+import { Link, useNavigate } from "react-router";
 import { siteConfig } from "~/config/site";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
 import { navConfig } from "~/config/nav";
@@ -29,23 +29,24 @@ import {
 } from "~/components/ui/navigation-menu";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
-import { docConfig } from "~/config/doc";
 
 type HeaderProps = {
   className?: string;
   versionData?: {
     versions: string[];
-    latestVersion?: string;
-    releaseBranch?: string;
-    branches?: string[];
-    currentRef?: string;
-    lang?: string;
+    branches: string[];
+    currentRef: string;
+    product: string;
+    products: { key: string; title: string }[];
   };
 };
 
+const selectTriggerClassName =
+  "w-40 border border-none shadow-none rounded-md h-md py-2 text-md font-medium bg-accent focus:outline-none";
+
 export function Header({ className, versionData }: HeaderProps) {
   let navigate = useNavigate();
-  let { versions, latestVersion, releaseBranch, currentRef, branches, lang } =
+  let { versions, currentRef, branches, product, products } =
     versionData || {};
 
   return (
@@ -66,15 +67,31 @@ export function Header({ className, versionData }: HeaderProps) {
             <span className="sr-only">{siteConfig.name}</span>
           </Link>
           {versionData && (
-            <nav className="flex items-center text-sm">
+            <nav className="flex items-center gap-2 text-sm">
+              {products && products.length > 1 && (
+                <Select
+                  key={product}
+                  onValueChange={(p) => navigate(`/docs/${p}`)}
+                  defaultValue={product}
+                >
+                  <SelectTrigger id="product" className={selectTriggerClassName}>
+                    <SelectValue placeholder="Select a product" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-56 r-md">
+                    {products.map(({ key, title }) => (
+                      <SelectItem key={key} value={key}>
+                        {title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select
-                onValueChange={(v) => navigate(`/docs/${lang}/` + v)}
+                key={`${product}/${currentRef}`}
+                onValueChange={(v) => navigate(`/docs/${product}/` + v)}
                 defaultValue={currentRef}
               >
-                <SelectTrigger
-                  id="version"
-                  className="w-40 border border-none shadow-none rounded-md h-md py-2 text-md font-medium bg-accent focus:outline-none"
-                >
+                <SelectTrigger id="version" className={selectTriggerClassName}>
                   <SelectValue placeholder="Select a version" />
                 </SelectTrigger>
                 <SelectContent position="popper" className="w-56 r-md">
@@ -124,7 +141,7 @@ function MainNav() {
         <NavigationMenuList>
           {navConfig.mainNav?.map((item) =>
             item.children && item.children.length > 0 ? (
-              <NavigationMenuItem>
+              <NavigationMenuItem key={item.href}>
                 <NavigationMenuTrigger>{item.title}</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[300px] gap-3 p-2 rounded-md">
@@ -151,39 +168,35 @@ function MainNav() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
             ) : (
-              <NavigationMenuItem>
-                <Link to={item.href}>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    {item.title}
-                  </NavigationMenuLink>
-                </Link>
+              <NavigationMenuItem key={item.href}>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+                  <Link to={item.href}>{item.title}</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
             )
           )}
           <NavigationMenuItem>
-            <Link key="github" to={siteConfig.github.repoUrl}>
-              <NavigationMenuLink className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
-                <span className="sr-only">"View on GitHub"</span>
+            <NavigationMenuLink asChild className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
+              <Link to={siteConfig.github.repoUrl}>
+                <span className="sr-only">View on GitHub</span>
                 <svg aria-hidden style={{ width: `24px`, height: `24px` }}>
                   <use href={`${iconsHref}#github`} />
                 </svg>
-              </NavigationMenuLink>
-            </Link>
+              </Link>
+            </NavigationMenuLink>
           </NavigationMenuItem>
           <NavigationMenuItem>
-            <Link
-              key="slack"
-              to="https://join.slack.com/t/boomerang-io/shared_invite/zt-pxo2yw2o-c3~6YvWkKNrKIwhIBAKhaw"
-            >
-              <NavigationMenuLink className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
-                <span className="sr-only">"Chat on Slack"</span>
+            <NavigationMenuLink asChild className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
+              <Link to="https://join.slack.com/t/boomerang-io/shared_invite/zt-pxo2yw2o-c3~6YvWkKNrKIwhIBAKhaw">
+                <span className="sr-only">Chat on Slack</span>
                 <img
                   aria-hidden
+                  alt=""
                   style={{ width: `24px`, height: `24px` }}
                   src="/logo/slack.svg"
                 />
-              </NavigationMenuLink>
-            </Link>
+              </Link>
+            </NavigationMenuLink>
           </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>

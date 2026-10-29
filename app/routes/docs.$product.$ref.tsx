@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   Link,
   Outlet,
+  redirect,
   useLoaderData,
   useLocation,
   useMatches,
@@ -9,14 +10,15 @@ import {
   useParams,
   useResolvedPath,
   matchPath,
-} from "@remix-run/react";
-import { json, redirect } from "@remix-run/node";
-import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
+} from "react-router";
+import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
 import cx from "clsx";
+import invariant from "tiny-invariant";
 import "~/styles/docs.css";
 import { DetailsMenu } from "~/components/details-menu";
 import iconsHref from "~/icons.svg";
 import {
+  REPO_URL,
   getRepoBranches,
   getRepoDocsMenu,
   getRepoTags,
@@ -29,60 +31,68 @@ import { octokit } from "~/utils/github.server";
 import { CACHE_CONTROL } from "~/utils/http.server";
 import { VersionWarningMessage } from "~/components/version-warning-message";
 import { siteConfig } from "~/config/site";
-import { docConfig } from "~/config/doc";
+import { docConfig, getGitHubRef, getProduct } from "~/config/doc";
 import { Header } from "~/components/header";
 import { Badge } from "~/components/ui/badge";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
-  let { lang = "en", ref = "main", "*": splat } = params;
+  let { product: productParam, ref = "", "*": splat } = params;
+  invariant(productParam, "expected `product` params");
 
-  let branchesInMenu = docConfig.branches;
-  let [tags, branches] = await Promise.all([
-    getRepoTags({ octokit, releasePrefix: docConfig.versions.prefix }),
+  let product = getProduct(productParam) ?? docConfig.defaultProduct;
+  let config = docConfig.products[product];
+  let [tags, repoBranches] = await Promise.all([
+    getRepoTags({ octokit, releasePrefix: config.versions.prefix }),
     getRepoBranches({ octokit }),
   ]);
 
-  console.log("Tags: ", tags);
-  if (!tags || !branches) {
+  if (!tags || !repoBranches) {
     throw new Response("Cannot reach GitHub", { status: 503 });
   }
 
-  if (
-    process.env.NODE_ENV === "development" &&
-    !branchesInMenu.includes("local")
-  ) {
+  let branches = [...repoBranches];
+  let branchesInMenu = [...config.branches];
+  if (process.env.NODE_ENV === "development") {
     branches.push("local");
     branchesInMenu.push("local");
   }
 
-  let betterUrl = validateParams(tags, branches, {
-    lang,
-    ref,
-    "*": splat,
-  });
+  let betterUrl = validateParams(
+    tags,
+    branches,
+    { product: productParam, ref, "*": splat },
+    product,
+  );
   if (betterUrl) {
     console.log("Redirecting to better URL: ", betterUrl);
     throw redirect("/docs/" + betterUrl);
   }
 
   let latestVersion = getLatestVersion(tags);
-  let versions = getLatestVersionHeads(tags);
+  let versions = getLatestVersionHeads(tags, config.versions.includeMinor);
 
-  let menu = await getRepoDocsMenu(useGitHubRef(ref), lang);
-  let releaseBranch = docConfig.releaseBranch;
+  let githubRef = getGitHubRef(product, ref);
+  let menu = await getRepoDocsMenu(githubRef, config.pathToDocs);
+  let releaseBranch = config.releaseBranch;
   let isLatest = ref === releaseBranch || ref === latestVersion;
 
-  return json({
+  return {
     menu,
     versions,
     latestVersion,
     releaseBranch,
     branches: branchesInMenu,
     currentRef: ref,
-    lang,
+    githubRef,
+    product,
+    products: Object.entries(docConfig.products).map(([key, { title }]) => ({
+      key,
+      title,
+    })),
     isLatest,
-    repoUrl: siteConfig.github.repoUrl,
-  });
+    isEditable: config.branches.includes(ref),
+    repoUrl: REPO_URL,
+  };
 };
 
 export const headers: HeadersFunction = () => {
@@ -161,7 +171,6 @@ export default function DocsLayout() {
 }
 
 function Footer() {
-  let { repoUrl } = useLoaderData<typeof loader>();
   return (
     <div className="place-content-center flex justify-between gap-4 border-t border-t-gray-50 py-4 text-sm text-gray-400 dark:border-gray-800">
       <div className="sm:flex sm:items-center sm:gap-2 lg:gap-4">
@@ -181,7 +190,7 @@ function Footer() {
         </div>
         <div className="hidden sm:block">•</div>
         <div>
-          <EditLink repoUrl={repoUrl} />
+          <EditLink />
         </div>
       </div>
     </div>
@@ -189,9 +198,10 @@ function Footer() {
 }
 
 function VersionWarning() {
-  let { isLatest, branches, currentRef } = useLoaderData<typeof loader>();
-  if (isLatest) return null;
+  let { isLatest, branches, currentRef, product, releaseBranch } =
+    useLoaderData<typeof loader>();
   let { "*": splat } = useParams();
+  if (isLatest) return null;
 
   return (
     <div className="text-center">
@@ -199,6 +209,7 @@ function VersionWarning() {
         <VersionWarningMessage
           branches={branches}
           currentRef={currentRef}
+          latestPath={`/docs/${product}/${releaseBranch}`}
           splat={splat}
         />
       </div>
@@ -438,42 +449,39 @@ function MenuLink({ to, children }: { to: string; children: React.ReactNode }) {
           ? ["text-black", "bg-accent"]
           : ["text-gray-700 hover:text-black", "hover:bg-accent"]
       )}
-      children={children}
-    />
+    >
+      {children}
+    </Link>
   );
 }
 
 /*
  * Generates a link to GitHub in the footer. View for tags. Edit for branches.
  */
-function EditLink({ repoUrl }: { repoUrl: string }) {
+function EditLink() {
   let doc = useDoc();
-  let params = useParams();
-  let isEditableRef = docConfig.branches.includes(params.ref || "");
-  let text = "Edit on GitHub";
-  // TODO: deal with translations when we add them with params.lang
-  if (doc) {
-    let url = `${repoUrl}/edit/${params.ref}/${doc.slug}.md`;
+  let { repoUrl, githubRef, isEditable } = useLoaderData<typeof loader>();
+  // TODO: deal with translations when we add them
+  if (!doc) return null;
 
-    if (!doc || !isEditableRef) {
-      text = "View on GitHub";
-      url = `${repoUrl}/blob/${params.ref}/${doc.slug}.md`;
-    }
+  // doc.slug is the path in the repository, product folder included
+  let [text, url] = isEditable
+    ? ["Edit on GitHub", `${repoUrl}/edit/${githubRef}/${doc.slug}.md`]
+    : ["View on GitHub", `${repoUrl}/blob/${githubRef}/${doc.slug}.md`];
 
-    return (
-      <a
-        className="flex items-center gap-1 hover:underline"
-        href={url}
-        target="_blank"
-      >
-        {text}
-        <svg aria-hidden className="h-4 w-4">
-          <use href={`${iconsHref}#edit`} />
-        </svg>
-      </a>
-    );
-  }
-  return null;
+  return (
+    <a
+      className="flex items-center gap-1 hover:underline"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {text}
+      <svg aria-hidden className="h-4 w-4">
+        <use href={`${iconsHref}#edit`} />
+      </svg>
+    </a>
+  );
 }
 
 function InnerContainer({ children }: { children: React.ReactNode }) {
@@ -503,13 +511,4 @@ function useIsActivePath(to: string) {
   let location = navigating ? navigation.location! : currentLocation;
   let match = matchPath(pathname + "/*", location.pathname);
   return Boolean(match);
-}
-
-export function useGitHubRef(ref: string): string {
-  let branches = docConfig.branches;
-  let githubRef = ref;
-  if (docConfig.versions.prefix && !branches.includes(ref)) {
-    githubRef = docConfig.versions.prefix + ref;
-  }
-  return githubRef;
 }

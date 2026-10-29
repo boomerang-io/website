@@ -1,12 +1,11 @@
 import path from "path";
-import fs from "fs";
-import tar from "tar";
+import { Readable } from "stream";
+import * as tar from "tar";
 import { getMenuFromStream } from "./docs";
 
 describe("getMenuFromStream", () => {
   it("sorts the menu with children and stuff", async () => {
-    let stream = await getFixtureStream();
-    let menu = await getMenuFromStream(stream);
+    let menu = await getMenuFromStream(getFixtureStream(), "docs");
 
     // removes `index.md` so only 2, not 3
     expect(menu.length).toBe(2);
@@ -15,17 +14,27 @@ describe("getMenuFromStream", () => {
 
     expect(menu[1].attrs.title).toBe("Pages");
     expect(menu[1].children.length).toBe(2);
-
-    expect(menu[1].children.length).toBe(2);
     expect(menu[1].slug).toBe("pages");
     expect(menu[1].children[0].attrs.title).toBe("Quickstart Tutorial");
     expect(menu[1].children[0].slug).toBe("pages/tutorial");
   });
+
+  it("builds each product's menu from its own folder", async () => {
+    let menu = await getMenuFromStream(getFixtureStream(), "bosun");
+
+    expect(menu.map((doc) => doc.slug)).toEqual(["introduction"]);
+    expect(menu[0].children.map((doc) => doc.slug)).toEqual([
+      "introduction/overview",
+    ]);
+  });
 });
 
-async function getFixtureStream(): Promise<NodeJS.ReadableStream> {
-  let fixturePath = path.join(__dirname, "__test__");
-  let writePath = path.join(fixturePath, "tar.tgz");
-  await tar.c({ gzip: true, file: writePath }, [fixturePath]);
-  return fs.createReadStream(writePath);
+/**
+ * Both fixture products in one archive with GitHub's "<repo>-<ref>/" root folder.
+ */
+export function getFixtureStream(): NodeJS.ReadableStream {
+  let cwd = path.join(__dirname, "__test__");
+  return Readable.from(
+    tar.create({ gzip: true, cwd, prefix: "docs-main" }, ["docs", "bosun"]),
+  );
 }

@@ -111,7 +111,7 @@ export function isString(value: any): value is string {
   return typeof value === "string";
 }
 
-export function isFunction(value: any): value is Function {
+export function isFunction(value: any): value is (...args: any[]) => any {
   return typeof value === "function";
 }
 

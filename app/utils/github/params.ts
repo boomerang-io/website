@@ -1,75 +1,57 @@
 import * as semver from "semver";
-import iso_639_1, { type LanguageCode } from "iso-639-1";
+import iso_639_1 from "iso-639-1";
+import { docConfig, getProduct, type Product } from "~/config/doc";
 
-const CODES = iso_639_1.getAllCodes();
+const CODES: string[] = iso_639_1.getAllCodes();
 
+/**
+ * Returns the canonical "<product>/<ref>/<slug>" path for a docs URL, or null when the URL
+ * already is one. `product` is what the first segment resolves to (getProduct, else the default
+ * product) and `tags`/`branches` are that product's.
+ *
+ * Earlier URLs are redirected too: a language in the product position (/docs/en/main/...), a
+ * product alias (/docs/boomerang-flow/...) and no product at all (/docs/introduction/...).
+ */
 export function validateParams(
   tags: string[],
   branches: string[],
-  params: { lang: string; ref?: string; ["*"]?: string },
-  lang: string = "en",
+  params: { product: string; ref?: string; ["*"]?: string },
+  product: Product,
 ): string | null {
-  let { lang: first, ref: second, "*": splat } = params;
+  let { product: first, ref, "*": splat } = params;
+  let { releaseBranch } = docConfig.products[product];
 
-  let firstIsLang = CODES.includes(first as LanguageCode);
-  let secondIsRef =
-    second && (tags.includes(second) || branches.includes(second));
+  let isCanonical = first === product;
+  let namesProduct =
+    isCanonical || getProduct(first) === product || CODES.includes(first);
+  let [second, ...slug] = (namesProduct ? [ref, splat] : [first, ref, splat])
+    .filter((segment): segment is string => !!segment);
 
-  if (firstIsLang) {
-    if (!second) {
-      return `${first}/${semver.maxSatisfying(tags, "*", {
-        includePrerelease: false,
-      })}`;
-    }
-
-    if (!secondIsRef) {
-      let expandedRef = semver.maxSatisfying(tags, second, {
-        includePrerelease: false,
-      });
-      let latest = semver.maxSatisfying(tags, "*");
-      let path = [first];
-
-      if (expandedRef) {
-        path.push(expandedRef);
-      } else if (latest) {
-        if (semver.valid(second)) {
-          // If second looks like a semver tag but we didn't find it as a ref in
-          // the repo, we might just have a stale set of branches/tags from github.
-          // Instead of pushing both in and generating a 404 (/en/1.16.0/1.17.0/pages/...)
-          // we just point them back to the requested doc on main
-          path.push("main");
-        } else {
-          path.push(latest, second);
-        }
-      }
-
-      if (splat) path.push(splat);
-      return path.join("/");
-    }
+  if (!second) {
+    return [product, releaseBranch].join("/");
   }
 
-  let ref =
-    tags.includes(first) || branches.includes(first)
-      ? first
-      : semver.maxSatisfying(tags, first, { includePrerelease: false });
-  if (ref) {
-    let path = [lang, ref];
-    if (second) path.push(second);
-    if (splat) path.push(splat);
-    return path.join("/");
+  if (tags.includes(second) || branches.includes(second)) {
+    return isCanonical ? null : [product, second, ...slug].join("/");
   }
 
-  // If we don't have a language and we can't detect a ref, fallback to `main`
-  // so we get the latest and we can be comfortable redirecting on 404 slugs.
-  // If we were to redirect to the latest semver here (i.e., 2.1.0), then we
-  // can't safely process a slug 404 redirect in docs/$lang.$ref/$.tsx since we
-  // don't know that they weren't looking for something in a specific version
-  if (!firstIsLang && !ref) {
-    let path = [lang, "main", first];
-    if (second) path.push(second);
-    if (splat) path.push(splat);
-    return path.join("/");
+  // Shorthand versions: "4" is the latest 4.x.x, "4.1" the latest 4.1.x.
+  let expandedRef = semver.maxSatisfying(tags, second, {
+    includePrerelease: false,
+  });
+  if (expandedRef) {
+    return [product, expandedRef, ...slug].join("/");
   }
 
-  return null;
+  // If second looks like a semver tag but we didn't find it as a ref in the repo, we might
+  // just have a stale set of tags from GitHub. Instead of generating a 404 we point them to the
+  // requested doc on the release branch.
+  if (semver.valid(second)) {
+    return [product, releaseBranch, ...slug].join("/");
+  }
+
+  // No ref at all, so second is the start of the slug. Falling back to the release branch
+  // rather than the latest release keeps slug 404 redirects in docs.$product.$ref.$.tsx safe:
+  // they only run on the release branch.
+  return [product, releaseBranch, second, ...slug].join("/");
 }

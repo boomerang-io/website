@@ -1,9 +1,4 @@
-import gunzip from "gunzip-maybe";
-import tar from "tar-stream";
-import { docConfig } from "~/config/doc";
-
-const pathPrefix = docConfig.pathToDocs ? `${docConfig.pathToDocs}\/` : "";
-const REGULAR_EXPRESSION = `${pathPrefix}(.+)\.md$`;
+import { Parser } from "tar";
 
 type ProcessFile = ({
   filename,
@@ -13,9 +8,17 @@ type ProcessFile = ({
   content: string;
 }) => Promise<void>;
 
+/**
+ * Matches the markdown files under one folder of the repository. Every archive entry sits
+ * under a "<repo>-<ref>/" root folder, i.e. "docs-main/flow/index.md".
+ */
+export function markdownPattern(pathToDocs: string) {
+  return new RegExp(`^[^/]+/${pathToDocs}/.+\\.md$`);
+}
+
 export function createTarFileProcessor(
   stream: NodeJS.ReadableStream,
-  pattern: RegExp = new RegExp(REGULAR_EXPRESSION),
+  pattern: RegExp,
 ) {
   return (processFile: ProcessFile) =>
     processFilesFromRepoTarball(stream, pattern, processFile);
@@ -23,48 +26,33 @@ export function createTarFileProcessor(
 
 async function processFilesFromRepoTarball(
   stream: NodeJS.ReadableStream,
-  pattern: RegExp = new RegExp(REGULAR_EXPRESSION),
+  pattern: RegExp,
   processFile: ProcessFile,
 ): Promise<void> {
-  return new Promise((accept, reject) => {
-    stream
-      .pipe(gunzip())
-      .pipe(tar.extract())
-      .on("entry", async (header, stream, next) => {
-        // Make sure the file matches the ones we want to process
-        let isMatch = header.type === "file" && pattern.test(header.name);
-        if (isMatch) {
-          console.log("Processing file", header.name)
-          // header.name will include the name of the <repo>-<ref:branch/tag>
-          // remove "docs-main" or "docs-v1.0.0" from the full name
-          // that's something like "docs-main/docs/index.md"
-          let filename = removeRepoRefName(header.name);
-          // buffer the contents of this file stream so we can send the entire
-          // string to be processed by the caller
-          let content = await bufferStream(stream);
-          await processFile({ filename, content });
-          next();
-        } else {
-          // ignore this entry
-          stream.resume();
-          stream.on("end", next);
-        }
-      })
-      .on("error", reject)
-      .on("finish", accept);
+  let processing: Promise<void>[] = [];
+  await new Promise<void>((accept, reject) => {
+    // The parser gunzips, and skips every entry the filter turns down.
+    let parser = new Parser({
+      strict: true,
+      filter: (entryPath) => pattern.test(entryPath),
+      onReadEntry: (entry) => {
+        // remove "docs-main" or "docs-flow-4.0.0" from the full name
+        let filename = removeRepoRefName(entry.path);
+        processing.push(
+          entry
+            .concat()
+            .then((content) => processFile({ filename, content: content.toString() })),
+        );
+      },
+    });
+    parser.on("error", reject);
+    parser.on("end", accept);
+    stream.on("error", reject);
+    stream.pipe(parser);
   });
+  await Promise.all(processing);
 }
 
 function removeRepoRefName(headerName: string): string {
   return headerName.replace(/^.+?[/]/, "");
-}
-
-async function bufferStream(stream: NodeJS.ReadableStream): Promise<string> {
-  return new Promise((accept, reject) => {
-    let chunks: Uint8Array[] = [];
-    stream
-      .on("error", reject)
-      .on("data", (chunk) => chunks.push(chunk))
-      .on("end", () => accept(Buffer.concat(chunks).toString()));
-  });
 }

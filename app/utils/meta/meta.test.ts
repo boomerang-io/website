@@ -1,4 +1,5 @@
 import { getMeta } from "./meta";
+import { siteConfig } from "~/config/site";
 
 describe("getMeta", () => {
   describe("default", () => {
@@ -14,8 +15,8 @@ describe("getMeta", () => {
         { property: "og:title", content: "Remix" },
         { property: "og:description", content: "Some description." },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:creator", content: "@remix_run" },
-        { name: "twitter:site", content: "@remix_run" },
+        { name: "twitter:creator", content: siteConfig.twitter.handle },
+        { name: "twitter:site", content: siteConfig.twitter.handle },
         { name: "twitter:title", content: "Remix" },
         { name: "twitter:description", content: "Some description." },
       ]);
@@ -39,8 +40,8 @@ describe("getMeta", () => {
         { property: "og:description", content: "Some description." },
         { property: "og:image", content: "https://remix.run/img/og.1.jpg" },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:creator", content: "@remix_run" },
-        { name: "twitter:site", content: "@remix_run" },
+        { name: "twitter:creator", content: siteConfig.twitter.handle },
+        { name: "twitter:site", content: siteConfig.twitter.handle },
         { name: "twitter:title", content: "Remix" },
         { name: "twitter:description", content: "Some description." },
         { name: "twitter:image", content: "https://remix.run/img/og.1.jpg" },
@@ -66,8 +67,8 @@ describe("getMeta", () => {
         { property: "og:title", content: "Remix" },
         { property: "og:description", content: "Some description." },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:creator", content: "@remix_run" },
-        { name: "twitter:site", content: "@remix_run" },
+        { name: "twitter:creator", content: siteConfig.twitter.handle },
+        { name: "twitter:site", content: siteConfig.twitter.handle },
         { name: "twitter:title", content: "Remix" },
         { name: "twitter:description", content: "Some description." },
         { name: "robots", content: "index, follow" },

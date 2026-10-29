@@ -28,7 +28,7 @@ export const navConfig: NavConfig = {
         {
           title: "Documentation",
           description: "Dive deep and learn everything there is to know about Boomerang Flow.",
-          href: "/docs",
+          href: "/docs/flow",
         },
       ],
     },

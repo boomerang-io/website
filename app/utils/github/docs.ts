@@ -3,10 +3,9 @@ import { LRUCache } from "lru-cache";
 import parseYamlHeader from "gray-matter";
 import { getRepoContent, getRepoImage} from "./repo-content";
 import { getRepoTarballStream } from "./repo-tarball";
-import { createTarFileProcessor } from "./tarball.server";
+import { createTarFileProcessor, markdownPattern } from "./tarball.server";
 import { load as $ } from "cheerio";
 import { env } from "~/utils/env.server";
-import { docConfig } from "~/config/doc";
 
 interface MenuDocAttributes {
   title: string;
@@ -52,9 +51,9 @@ global.menuCache ??= new LRUCache<string, MenuDoc[]>({
 
 async function fetchMenu(key: string) {
   console.log(`Fetching fresh menu: ${key}`);
-  let [repo, ref] = key.split(":");
-  let stream = await getRepoTarballStream(repo, ref);
-  let menu = await getMenuFromStream(stream);
+  let [repo, ref, pathToDocs] = key.split(":");
+  let stream = await getRepoTarballStream(repo, ref, pathToDocs);
+  let menu = await getMenuFromStream(stream, pathToDocs);
 
   return menu;
 }
@@ -62,9 +61,9 @@ async function fetchMenu(key: string) {
 export async function getMenu(
   repo: string,
   ref: string,
-  lang: string,
+  pathToDocs: string,
 ): Promise<MenuDoc[] | undefined> {
-  let menu = await menuCache.fetch(`${repo}:${ref}`);
+  let menu = await menuCache.fetch(`${repo}:${ref}:${pathToDocs}`);
   return menu || undefined;
 }
 
@@ -181,12 +180,15 @@ export async function getImage(
 /**
  * Exported for unit tests
  */
-export async function getMenuFromStream(stream: NodeJS.ReadableStream) {
+export async function getMenuFromStream(
+  stream: NodeJS.ReadableStream,
+  pathToDocs: string,
+) {
   let docs: MenuDoc[] = [];
-  let processFiles = createTarFileProcessor(stream);
+  let processFiles = createTarFileProcessor(stream, markdownPattern(pathToDocs));
   await processFiles(async ({ filename, content }) => {
     let { attrs, content: md } = parseAttrs(content, filename);
-    let slug = makeSlug(filename);
+    let slug = makeSlug(filename, pathToDocs);
 
     // don't need docs/index.md in the menu
     if (slug === "") return;
@@ -196,7 +198,7 @@ export async function getMenuFromStream(stream: NodeJS.ReadableStream) {
     docs.push({
       attrs,
       filename,
-      slug: makeSlug(filename),
+      slug,
       hasContent: md.length > 0,
       children: [],
     });
@@ -208,7 +210,6 @@ export async function getMenuFromStream(stream: NodeJS.ReadableStream) {
   let tree: MenuDoc[] = [];
   let map = new Map<string, MenuDoc>();
   for (let doc of docs) {
-    console.log(`Doc: ${JSON.stringify(doc)}`)
     let { slug } = doc;
 
     let parentSlug = slug.substring(0, slug.lastIndexOf("/"));
@@ -237,17 +238,11 @@ export async function getMenuFromStream(stream: NodeJS.ReadableStream) {
 }
 
 /**
- * Removes the extension from markdown file names.
+ * Removes the product folder and the extension from markdown file names.
  */
-function makeSlug(docName: string): string {
-  // Could be as simple as `/^docs\//` but local development tarballs have more
-  // path in front of "docs/", so grab any of that stuff too. Maybe there's a
-  // way to control the basename of files when we make the local tarball but I
-  // dunno how to do that right now.
-
-  let pathPrefix = docConfig.pathToDocs ? `${docConfig.pathToDocs}\/` : "";
+function makeSlug(docName: string, pathToDocs: string): string {
   return docName
-    .replace(new RegExp(`^(.+\/)?${pathPrefix}`), "")
+    .replace(new RegExp(`^${pathToDocs}/`), "")
     .replace(/\.md$/, "")
     .replace(/index$/, "")
     .replace(/\/$/, "");

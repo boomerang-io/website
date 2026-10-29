@@ -1,40 +1,44 @@
 import { LRUCache } from "lru-cache";
-import parseLinkHeader from "parse-link-header";
 import semver from "semver";
 import type { Octokit } from "octokit";
-import { docConfig } from "~/config/doc";
+import { env } from "~/utils/env.server";
 
-type CacheContext = { octokit: Octokit; releasePrefix: string };
+type CacheContext = { octokit: Octokit };
 declare global {
-  var tagsCache: LRUCache<string, string[], CacheContext>;
+  var releasesCache: LRUCache<string, string[], CacheContext>;
 }
 
 /**
- * Fetches the repo tags
+ * Fetches the versions released under a tag prefix, without the prefix: the "flow@4.0.0"
+ * release is "4.0.0".
  */
 export async function getTags(
   repo: string,
-  { octokit, releasePrefix }: CacheContext,
+  { octokit, releasePrefix }: CacheContext & { releasePrefix: string },
 ) {
-  return tagsCache.fetch(repo, {
-    context: { octokit, releasePrefix },
-  });
+  let tagNames = await releasesCache.fetch(repo, { context: { octokit } });
+  return tagNames && filterReleases(tagNames, releasePrefix);
+}
+
+export function filterReleases(tagNames: string[], releasePrefix: string) {
+  return tagNames
+    .filter((tag) => tag.startsWith(releasePrefix))
+    .map((tag) => tag.slice(releasePrefix.length))
+    .filter((version) => semver.valid(version));
 }
 
 export function getLatestVersion(tags: string[]) {
-  return tags.filter((tag) =>
-    semver.satisfies(tag, "*", { includePrerelease: false }),
-  )[0];
+  return semver.maxSatisfying(tags, "*", { includePrerelease: false }) ?? undefined;
 }
 
 /**
- * Returns the latest version of each major version
+ * Returns the latest version of each major version, or of each minor with includeMinor
  */
-export function getLatestVersionHeads(tags: string[]) {
+export function getLatestVersionHeads(tags: string[], includeMinor = false) {
   let heads = new Map<string, string>();
   for (let tag of tags) {
-    let prefix = semver.major(tag);
-    if (docConfig.versions.includeMinor) {
+    let prefix = String(semver.major(tag));
+    if (includeMinor) {
       prefix += "." + semver.minor(tag);
     }
     let head = heads.get(prefix);
@@ -45,74 +49,35 @@ export function getLatestVersionHeads(tags: string[]) {
   return Array.from(heads.values()).sort(semver.compare).reverse();
 }
 
+// Every product's releases come from the one repository, so the cache holds its tag names
+// once and getTags filters them per prefix.
 // global for SS "HMR", we need a better story here
-global.tagsCache ??= new LRUCache<string, string[], CacheContext>({
+global.releasesCache ??= new LRUCache<string, string[], CacheContext>({
   max: 3,
-  ttl: 1000 * 60 * 5, // 5 minutes, so we can see new tags quickly
-  allowStale: true,
+  ttl: env.NO_CACHE ? 1 : 1000 * 60 * 5, // 5 minutes, so we can see new tags quickly
+  allowStale: !env.NO_CACHE,
   noDeleteOnFetchRejection: true,
   fetchMethod: async (key, _, { context }) => {
-    console.log("Fetching fresh tags (releases)");
+    console.log("Fetching fresh releases", key);
     let [owner, repo] = key.split("/");
-    return getAllReleases(owner, repo, context.releasePrefix, context);
+    return getAllReleases(owner, repo, context);
   },
 });
 
-/*
-* Retrieves all releases, filters by prefix, and returns a map of <semver, tag / release>
-*/
+/**
+ * Retrieves the tag names of every published release.
+ */
 export async function getAllReleases(
   owner: string,
   repo: string,
-  releasePrefix: string,
-  {
-    octokit,
-    page = 1,
-    releases = [],
-  }: {
-    octokit: Octokit;
-    page?: number;
-    releases?: string[];
-  },
+  { octokit }: CacheContext,
 ): Promise<string[]> {
-  console.log("Fetching fresh releases, page", page);
-  let { data, headers, status } = await octokit.rest.repos.listReleases({
-    mediaType: { format: "json" },
+  let releases = await octokit.paginate(octokit.rest.repos.listReleases, {
     owner,
     repo,
     per_page: 100,
-    page,
   });
-
-  if (status !== 200) {
-    throw new Error(`Failed to fetch releases: ${data}`);
-  }
-
-  //Define regex with optional prefix (i.e. v or flow@)
-  let regex = new RegExp(`^${releasePrefix}[0-9]`);
-
-  // Filter releases that match the regex and set in returnable map
-  releases.push(
-    ...data
-    .filter((release) => {
-      return Boolean(
-        // Check the release name or tag_name
-        // Sometimes release name isn't set or won't match the pattern.
-        regex.test(release?.name || "") || regex.test(release.tag_name),
-      );
-    })
-    .map((release) => {
-      return release.tag_name.replace(releasePrefix, "");
-    }));
-
-  let parsed = parseLinkHeader(headers.link);
-  if (parsed?.next) {
-    return await getAllReleases(owner, repo, releasePrefix, {
-      page: page + 1,
-      releases,
-      octokit,
-    });
-  }
-
-  return releases;
+  return releases
+    .filter((release) => !release.draft)
+    .map((release) => release.tag_name);
 }

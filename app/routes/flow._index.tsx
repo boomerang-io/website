@@ -1,6 +1,4 @@
-import { Link } from "@remix-run/react";
-import { Footer } from "~/components/footer";
-import { Header } from "~/components/header";
+import { Link } from "react-router";
 import FlowLogo from "~/components/images/FlowLogo";
 
 export default function About() {
@@ -27,7 +25,7 @@ export default function About() {
               <div className="flex gap-4">
                 <Link
                   className="inline-flex items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
-                  to="/docs"
+                  to="/docs/flow"
                 >
                   Get Started
                 </Link>
@@ -52,6 +50,7 @@ export default function About() {
                   className="absolute top-0 z-[1] h-full w-full max-h-[30rem] border-none"
                   loading="lazy"
                   src="https://www.youtube.com/embed/-lOninwMoz4?start=0"
+                  title="Boomerang Flow overview video"
                 />
               </div>
             </div>
@@ -88,6 +87,7 @@ export default function About() {
                   className="absolute top-0 z-[1] h-full w-full max-h-[30rem] border-none aspect-video"
                   loading="lazy"
                   src="https://www.youtube.com/embed/erBEQdBHFJU?start=0"
+                  title="Boomerang Flow demo video"
                 />
               </div>
             </div>
@@ -131,12 +131,12 @@ export default function About() {
                 </li>
                 <li>
                   Fully extensible by supporting prebuilt Tekton® Catalog Task
-                  and if that's not enough, build your own Task based on any
+                  and if that&apos;s not enough, build your own Task based on any
                   Docker image.
                 </li>
                 <li>
                   With an enhanced visual platform to abstract the experience so
-                  you don't need to work in YAML directly in Kubernetes.
+                  you don&apos;t need to work in YAML directly in Kubernetes.
                 </li>
               </ul>
             </div>

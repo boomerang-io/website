@@ -1,4 +1,4 @@
-import type { MetaDescriptor } from "@remix-run/node";
+import type { MetaDescriptor } from "react-router";
 import { siteConfig } from "~/config/site";
 
 type CustomMetaArgs = {

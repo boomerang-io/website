@@ -2,113 +2,181 @@ import { validateParams as validate } from "./params";
 
 let LATEST_V1_MAJOR_TAG: string;
 let LATEST_V1_MINOR_TAG: string;
-let LATEST_STABLE_TAG: string;
 
 const TAGS = [
-  "v1.0.0",
-  "v1.1.0",
-  (LATEST_V1_MINOR_TAG = "v1.1.1"),
-  (LATEST_V1_MAJOR_TAG = "v1.2.0"),
-  "v2.0.0",
-  (LATEST_STABLE_TAG = "v2.1.0"),
-  "v3.0.0-pre.0",
+  "1.0.0",
+  "1.1.0",
+  (LATEST_V1_MINOR_TAG = "1.1.1"),
+  (LATEST_V1_MAJOR_TAG = "1.2.0"),
+  "2.0.0",
+  "2.1.0",
+  "3.0.0-pre.0",
 ];
 
 const BRANCHES = ["main", "dev"];
 
 describe("validateParams", () => {
-  describe("with a valid lang in the first position", () => {
+  describe("with the product in the first position", () => {
     describe("and a valid tag in the second position", () => {
       it("returns null", () => {
-        expect(validate(TAGS, BRANCHES, { lang: "en", ref: "v1.0.0" })).toBe(
-          null,
-        );
         expect(
-          validate(TAGS, BRANCHES, { lang: "en", ref: "v1.0.0", "*": "beef" }),
+          validate(TAGS, BRANCHES, { product: "flow", ref: "1.0.0" }, "flow"),
+        ).toBe(null);
+        expect(
+          validate(
+            TAGS,
+            BRANCHES,
+            { product: "flow", ref: "1.0.0", "*": "beef" },
+            "flow",
+          ),
         ).toBe(null);
       });
     });
 
     describe("and a valid shorthand tag", () => {
       it("expands the major shorthand", () => {
-        expect(validate(TAGS, BRANCHES, { lang: "en", ref: "v1" })).toBe(
-          `en/${LATEST_V1_MAJOR_TAG}`,
-        );
+        expect(
+          validate(TAGS, BRANCHES, { product: "flow", ref: "1" }, "flow"),
+        ).toBe(`flow/${LATEST_V1_MAJOR_TAG}`);
       });
       it("expands the minor shorthand", () => {
-        expect(validate(TAGS, BRANCHES, { lang: "en", ref: "v1.1" })).toBe(
-          `en/${LATEST_V1_MINOR_TAG}`,
-        );
+        expect(
+          validate(TAGS, BRANCHES, { product: "flow", ref: "1.1" }, "flow"),
+        ).toBe(`flow/${LATEST_V1_MINOR_TAG}`);
       });
       it("expands the major shorthand, preserves splat", () => {
         expect(
-          validate(TAGS, BRANCHES, { lang: "en", ref: "v1", "*": "beef/taco" }),
-        ).toBe(`en/${LATEST_V1_MAJOR_TAG}/beef/taco`);
+          validate(
+            TAGS,
+            BRANCHES,
+            { product: "flow", ref: "1", "*": "beef/taco" },
+            "flow",
+          ),
+        ).toBe(`flow/${LATEST_V1_MAJOR_TAG}/beef/taco`);
       });
     });
 
     describe("and a valid branch in the second position", () => {
       it("returns null", () => {
-        expect(validate(TAGS, BRANCHES, { lang: "en", ref: "main" })).toBe(
-          null,
-        );
         expect(
-          validate(TAGS, BRANCHES, { lang: "en", ref: "main", "*": "beef" }),
+          validate(TAGS, BRANCHES, { product: "flow", ref: "dev" }, "flow"),
+        ).toBe(null);
+        expect(
+          validate(
+            TAGS,
+            BRANCHES,
+            { product: "flow", ref: "main", "*": "beef" },
+            "flow",
+          ),
         ).toBe(null);
       });
     });
 
-    it("redirects to the latest stable tag", () => {
-      expect(validate(TAGS, BRANCHES, { lang: "en" })).toBe(
-        `en/${LATEST_STABLE_TAG}`,
+    it("redirects to the release branch", () => {
+      expect(validate(TAGS, BRANCHES, { product: "flow" }, "flow")).toBe(
+        "flow/main",
       );
     });
 
     describe("and an invalid branch or tag in the second position", () => {
-      it("inserts latest tag", () => {
-        expect(validate(TAGS, BRANCHES, { lang: "en", ref: "beef" })).toBe(
-          `en/${LATEST_STABLE_TAG}/beef`,
-        );
+      it("treats it as the slug on the release branch", () => {
+        expect(
+          validate(TAGS, BRANCHES, { product: "flow", ref: "beef" }, "flow"),
+        ).toBe("flow/main/beef");
+      });
+      it("drops a version that was never released", () => {
+        expect(
+          validate(
+            TAGS,
+            BRANCHES,
+            { product: "flow", ref: "9.9.9", "*": "beef" },
+            "flow",
+          ),
+        ).toBe("flow/main/beef");
       });
     });
   });
 
-  describe("with a valid tag in the first param", () => {
-    it("adds lang", () => {
-      expect(validate(TAGS, BRANCHES, { lang: "v1.0.0" })).toBe("en/v1.0.0");
+  describe("with an earlier URL", () => {
+    it("replaces a product alias", () => {
+      expect(
+        validate(
+          TAGS,
+          BRANCHES,
+          { product: "boomerang-flow", ref: "introduction", "*": "overview" },
+          "flow",
+        ),
+      ).toBe("flow/main/introduction/overview");
     });
 
-    it("adds lang and keeps splat params around", () => {
-      expect(validate(TAGS, BRANCHES, { lang: "v1.0.0", ref: "beef" })).toBe(
-        "en/v1.0.0/beef",
+    it("replaces a language with the product", () => {
+      expect(
+        validate(
+          TAGS,
+          BRANCHES,
+          { product: "en", ref: "main", "*": "beef" },
+          "flow",
+        ),
+      ).toBe("flow/main/beef");
+      expect(
+        validate(TAGS, BRANCHES, { product: "en", ref: "1.0.0" }, "flow"),
+      ).toBe("flow/1.0.0");
+    });
+  });
+
+  describe("without a product in the first position", () => {
+    it("adds the product to a tag", () => {
+      expect(validate(TAGS, BRANCHES, { product: "1.0.0" }, "flow")).toBe(
+        "flow/1.0.0",
       );
     });
-  });
 
-  describe("with a valid shorthand tag in the first param", () => {
-    it("adds lang, expands the major tag", () => {
-      expect(validate(TAGS, BRANCHES, { lang: "v1" })).toBe(
-        `en/${LATEST_V1_MAJOR_TAG}`,
+    it("adds the product and keeps splat params around", () => {
+      expect(
+        validate(TAGS, BRANCHES, { product: "1.0.0", ref: "beef" }, "flow"),
+      ).toBe("flow/1.0.0/beef");
+    });
+
+    it("adds the product, expands the major tag", () => {
+      expect(validate(TAGS, BRANCHES, { product: "1" }, "flow")).toBe(
+        `flow/${LATEST_V1_MAJOR_TAG}`,
       );
     });
-  });
 
-  describe("with a valid branch in the first position", () => {
-    it("adds the lang", () => {
-      expect(validate(TAGS, BRANCHES, { lang: "main" })).toBe("en/main");
+    it("adds the product to a branch", () => {
+      expect(validate(TAGS, BRANCHES, { product: "main" }, "flow")).toBe(
+        "flow/main",
+      );
+    });
+
+    it("adds the product and release branch to a slug", () => {
+      expect(
+        validate(
+          TAGS,
+          BRANCHES,
+          { product: "introduction", ref: "getting-started" },
+          "flow",
+        ),
+      ).toBe("flow/main/introduction/getting-started");
     });
   });
 
-  describe("without a valid branch or tag in the first position", () => {
-    it("adds lang and latest stable tag", () => {
-      expect(validate(TAGS, BRANCHES, { lang: "beef" })).toBe(`en/main/beef`);
+  describe("with a product that has no releases", () => {
+    it("accepts its branches", () => {
+      expect(
+        validate([], BRANCHES, { product: "bosun", ref: "main" }, "bosun"),
+      ).toBe(null);
     });
-    describe("without a valid branch or tag in the second position", () => {
-      it("adds lang and latest stable tag", () => {
-        expect(validate(TAGS, BRANCHES, { lang: "beef", ref: "cheese" })).toBe(
-          `en/main/beef/cheese`,
-        );
-      });
+
+    it("sends a version to the release branch", () => {
+      expect(
+        validate(
+          [],
+          BRANCHES,
+          { product: "bosun", ref: "1.0.0", "*": "introduction" },
+          "bosun",
+        ),
+      ).toBe("bosun/main/introduction");
     });
   });
 });
