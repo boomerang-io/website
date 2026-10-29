@@ -65,9 +65,11 @@ Loaders return plain objects or `data(value, init)`; components read them with `
 - Hosting is Railway, which builds the root `Dockerfile` and injects `PORT`. The service needs `SOURCE_REPO` and `GITHUB_TOKEN`; point its healthcheck at `/health`.
 
 ### UI
-- `components/ui/` holds shadcn/ui components (new-york style, zinc, CSS variables; see `components.json`). The `cn` helper is in `~/utils/theme`. `~/*` maps to `app/*`.
-- The docs header (`components/header.tsx`) has a product switcher and a version switcher, both fed by the layout loader.
-- Marketing pages are `_index.tsx`, `about.tsx`, and `flow.*`.
+- Design system: IBM Plex Sans and Mono (loaded in `root.tsx` links), the `brand.*` palette in `tailwind.config.js` (ink `#0B1B2B`, muted, canvas, blue `#0F62FE`, teal diagram lines), 6px buttons and `rounded-card` (10px) cards, `max-w-page` (1240px) containers, and the `.bg-dots` grid in `styles/globals.css`. The shadcn CSS variables are set to the same palette. The mocks live in the "Boomerang Website Redesign" Design canvas (round 3 is the shipped direction).
+- `components/ui/` holds the shadcn/ui components still in use (button with `lg` and `inverse` variants, select, sheet, badge, card). The `cn` helper is in `~/utils/theme`. `~/*` maps to `app/*`.
+- `components/header.tsx` and `footer.tsx` read their links from `config/nav.ts`. In the docs layout the header also gets `versionData` and shows the product and version switchers.
+- Pages: `_index.tsx` (hero diagram from `components/flow-diagram.tsx`, projects, community), `flow._index.tsx` under the `flow.tsx` layout, `about.tsx`. `/flow/try` (the retired Backstop sandbox) redirects through `_redirects`.
+- Copy follows the Flow docs' voice: Workflow, Task and Team capitalised, and the odd Boomerang-ism ("without writing a single line of code... unless you really want to!", "bring a script, bring a container").
 
 ### Code style
 Remix style: `let` for locals, `const` for module-level constants (`prefer-const` is off). Catch bindings may be unused (`catch (_)`).

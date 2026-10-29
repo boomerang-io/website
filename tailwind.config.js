@@ -17,7 +17,29 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"IBM Plex Sans"', '"Helvetica Neue"', "Arial", "sans-serif"],
+        mono: ['"IBM Plex Mono"', "Menlo", "monospace"],
+      },
+      maxWidth: {
+        page: "1240px",
+      },
       colors: {
+        // The site's palette: ink on white, a dot-grid canvas, IBM blue for actions and teal for
+        // the diagram lines.
+        brand: {
+          ink: "#0B1B2B",
+          muted: "#46576A",
+          canvas: "#EEF2F6",
+          dots: "#C3CDD8",
+          line: "#DCE3EA",
+          edge: "#C9D3DD",
+          blue: "#0F62FE",
+          link: "#0043CE",
+          teal: "#0A6E73",
+          sky: "#9FC2FF",
+          mist: "#C3CEDA",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -65,6 +87,7 @@ module.exports = {
         },
       },
       borderRadius: {
+        card: "10px",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",

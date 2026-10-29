@@ -1,11 +1,9 @@
 import * as React from "react";
-import { Link, useNavigate } from "react-router";
-import { siteConfig } from "~/config/site";
+import { Link, NavLink, useNavigate } from "react-router";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
-import { navConfig } from "~/config/nav";
+import { siteConfig } from "~/config/site";
+import { navConfig, type NavItem } from "~/config/nav";
 import { Button } from "~/components/ui/button";
-import { ScrollArea } from "~/components/ui/scroll-area";
-import iconsHref from "~/icons.svg";
 import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import {
   SelectValue,
@@ -18,17 +16,6 @@ import {
   Select,
 } from "~/components/ui/select";
 import { cn } from "~/utils/theme";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle,
-} from "~/components/ui/navigation-menu";
-import { Label } from "~/components/ui/label";
-import { Separator } from "~/components/ui/separator";
 
 type HeaderProps = {
   className?: string;
@@ -42,90 +29,26 @@ type HeaderProps = {
 };
 
 const selectTriggerClassName =
-  "w-40 border border-none shadow-none rounded-md h-md py-2 text-md font-medium bg-accent focus:outline-none";
+  "w-28 sm:w-40 border-none shadow-none rounded-md h-10 py-2 font-medium bg-accent focus:outline-none";
 
 export function Header({ className, versionData }: HeaderProps) {
-  let navigate = useNavigate();
-  let { versions, currentRef, branches, product, products } =
-    versionData || {};
-
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "sticky top-0 z-50 w-full border-b border-brand-line bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85",
         className
       )}
     >
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
-          <Link to="/" className=" mr-6 flex items-center space-x-4">
+      <div className="mx-auto flex h-16 max-w-page items-center justify-between gap-6 px-4 sm:px-8">
+        <div className="flex items-center gap-6">
+          <Link to="/" aria-label={`${siteConfig.name} home`} className="shrink-0">
             <img
               src="/boomerang-logo-dark.svg"
-              className="h-7"
               alt={siteConfig.name}
+              className="h-7 w-auto"
             />
-            <span className="sr-only">{siteConfig.name}</span>
           </Link>
-          {versionData && (
-            <nav className="flex items-center gap-2 text-sm">
-              {products && products.length > 1 && (
-                <Select
-                  key={product}
-                  onValueChange={(p) => navigate(`/docs/${p}`)}
-                  defaultValue={product}
-                >
-                  <SelectTrigger id="product" className={selectTriggerClassName}>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" className="w-56 r-md">
-                    {products.map(({ key, title }) => (
-                      <SelectItem key={key} value={key}>
-                        {title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Select
-                key={`${product}/${currentRef}`}
-                onValueChange={(v) => navigate(`/docs/${product}/` + v)}
-                defaultValue={currentRef}
-              >
-                <SelectTrigger id="version" className={selectTriggerClassName}>
-                  <SelectValue placeholder="Select a version" />
-                </SelectTrigger>
-                <SelectContent position="popper" className="w-56 r-md">
-                  <SelectGroup>
-                    {branches && branches.length > 0 && (
-                      <SelectLabel className="text-sm text-muted-foreground font-light">
-                        Branches
-                      </SelectLabel>
-                    )}
-                    <SelectSeparator />
-                    {branches?.map((branch) => (
-                      <SelectItem key={branch} value={branch}>
-                        {branch}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    {versions && versions?.length > 0 && (
-                      <SelectLabel className="text-sm text-muted-foreground font-light">
-                        Versions
-                      </SelectLabel>
-                    )}
-                    <SelectSeparator />
-                    {versions?.map((version) => (
-                      <SelectItem key={version} value={version}>
-                        {/* Strip the prefix from the tag name to show in the dropdown */}
-                        {version}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </nav>
-          )}
+          {versionData && <DocsSwitchers {...versionData} />}
         </div>
         <MainNav />
         <MobileNav />
@@ -134,73 +57,117 @@ export function Header({ className, versionData }: HeaderProps) {
   );
 }
 
+function DocsSwitchers({
+  versions,
+  branches,
+  currentRef,
+  product,
+  products,
+}: NonNullable<HeaderProps["versionData"]>) {
+  let navigate = useNavigate();
+  return (
+    <nav aria-label="Documentation" className="flex items-center gap-2 text-sm">
+      {products.length > 1 && (
+        <Select
+          key={product}
+          onValueChange={(p) => navigate(`/docs/${p}`)}
+          defaultValue={product}
+        >
+          {/* Phones switch products from the menu (Flow, Bosun) */}
+          <SelectTrigger id="product" className={cn(selectTriggerClassName, "hidden sm:flex")}>
+            <SelectValue placeholder="Select a product" />
+          </SelectTrigger>
+          <SelectContent position="popper" className="w-56 r-md">
+            {products.map(({ key, title }) => (
+              <SelectItem key={key} value={key}>
+                {title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      <Select
+        key={`${product}/${currentRef}`}
+        onValueChange={(v) => navigate(`/docs/${product}/` + v)}
+        defaultValue={currentRef}
+      >
+        <SelectTrigger id="version" className={selectTriggerClassName}>
+          <SelectValue placeholder="Select a version" />
+        </SelectTrigger>
+        <SelectContent position="popper" className="w-56 r-md">
+          <SelectGroup>
+            {branches.length > 0 && (
+              <SelectLabel className="text-sm text-muted-foreground font-light">
+                Branches
+              </SelectLabel>
+            )}
+            <SelectSeparator />
+            {branches.map((branch) => (
+              <SelectItem key={branch} value={branch}>
+                {branch}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+          <SelectGroup>
+            {versions.length > 0 && (
+              <SelectLabel className="text-sm text-muted-foreground font-light">
+                Versions
+              </SelectLabel>
+            )}
+            <SelectSeparator />
+            {versions.map((version) => (
+              <SelectItem key={version} value={version}>
+                {version}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </nav>
+  );
+}
+
+function NavItemLink({ item, className }: { item: NavItem; className?: string }) {
+  if (item.external) {
+    return (
+      <a href={item.href} className={className} target="_blank" rel="noreferrer">
+        {item.title}
+      </a>
+    );
+  }
+  return (
+    <NavLink
+      to={item.href}
+      className={({ isActive }) =>
+        cn(
+          className,
+          isActive &&
+            "underline decoration-brand-teal decoration-2 underline-offset-8"
+        )
+      }
+    >
+      {item.title}
+    </NavLink>
+  );
+}
+
 function MainNav() {
   return (
-    <div className="hidden md:flex flex-1 items-center justify-between gap-6 md:justify-end">
-      <NavigationMenu>
-        <NavigationMenuList>
-          {navConfig.mainNav?.map((item) =>
-            item.children && item.children.length > 0 ? (
-              <NavigationMenuItem key={item.href}>
-                <NavigationMenuTrigger>{item.title}</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[300px] gap-3 p-2 rounded-md">
-                    {item.children.map((child, index) => (
-                      <li key={index}>
-                        <NavigationMenuLink asChild>
-                          <Link
-                            className={
-                              "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                            }
-                            to={child.href}
-                          >
-                            <div className="text-sm font-medium leading-none">
-                              {child.title}
-                            </div>
-                            <p className="line-clamp-2 text-sm font-normal leading-snug text-muted-foreground">
-                              {child.description}
-                            </p>
-                          </Link>
-                        </NavigationMenuLink>
-                      </li>
-                    ))}
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            ) : (
-              <NavigationMenuItem key={item.href}>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-                  <Link to={item.href}>{item.title}</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            )
-          )}
-          <NavigationMenuItem>
-            <NavigationMenuLink asChild className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
-              <Link to={siteConfig.github.repoUrl}>
-                <span className="sr-only">View on GitHub</span>
-                <svg aria-hidden style={{ width: `24px`, height: `24px` }}>
-                  <use href={`${iconsHref}#github`} />
-                </svg>
-              </Link>
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-          <NavigationMenuItem>
-            <NavigationMenuLink asChild className="h-10 w-10 place-items-center text-black hover:text-gray-600 md:grid">
-              <Link to="https://join.slack.com/t/boomerang-io/shared_invite/zt-pxo2yw2o-c3~6YvWkKNrKIwhIBAKhaw">
-                <span className="sr-only">Chat on Slack</span>
-                <img
-                  aria-hidden
-                  alt=""
-                  style={{ width: `24px`, height: `24px` }}
-                  src="/logo/slack.svg"
-                />
-              </Link>
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        </NavigationMenuList>
-      </NavigationMenu>
-    </div>
+    <nav
+      aria-label="Main"
+      className="hidden items-center gap-7 text-[15px] font-medium md:flex"
+    >
+      {navConfig.mainNav.map((item) => (
+        <NavItemLink
+          key={item.href}
+          item={item}
+          className="text-brand-ink hover:text-brand-link"
+        />
+      ))}
+      <Button asChild>
+        <Link to="/docs">Read the docs</Link>
+      </Button>
+    </nav>
   );
 }
 
@@ -209,44 +176,28 @@ function MobileNav() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <div className="md:hidden flex flex-1 items-center space-x-2 justify-end">
-        <SheetTrigger asChild>
-          <Button
-            variant="ghost"
-            className="mr-2 justify-end px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden"
-          >
-            <HamburgerMenuIcon className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
-        </SheetTrigger>
-      </div>
-      <SheetContent side="left" className="">
-        <Link to="/" className="flex items-center">
-          <span className="font-bold">{siteConfig.name}</span>
+      <SheetTrigger asChild>
+        <Button variant="ghost" className="px-2 md:hidden">
+          <HamburgerMenuIcon className="h-5 w-5" />
+          <span className="sr-only">Toggle Menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left">
+        <Link to="/" onClick={() => setOpen(false)} className="flex items-center">
+          <img
+            src="/boomerang-logo-dark.svg"
+            alt={siteConfig.name}
+            className="h-6 w-auto"
+          />
         </Link>
-        <ScrollArea className="my-4 h-[calc(100vh-8rem)] pb-10 px-3">
-          <div className="flex flex-col space-y-3">
-            {navConfig.mainNav?.map((item) =>
-              item.children && item.children.length > 0 ? (
-                <>
-                  <Label className="text-sm text-muted-foreground font-light">
-                    {item.title}
-                  </Label>
-                  <Separator />
-                  {item.children.map((child, index) => (
-                    <Link key={index} to={child.href} className="pl-5">
-                      {child.title}
-                    </Link>
-                  ))}
-                </>
-              ) : (
-                <Link key={item.href} to={item.href}>
-                  {item.title}
-                </Link>
-              )
-            )}
-          </div>
-        </ScrollArea>
+        <nav aria-label="Main" className="mt-8 flex flex-col gap-4 text-base font-medium">
+          {navConfig.mainNav.map((item) => (
+            <NavItemLink key={item.href} item={item} className="text-brand-ink" />
+          ))}
+          <Link to="/docs" onClick={() => setOpen(false)} className="text-brand-link">
+            Read the docs
+          </Link>
+        </nav>
       </SheetContent>
     </Sheet>
   );

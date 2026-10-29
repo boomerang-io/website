@@ -21,16 +21,22 @@ export function links() {
     {
       rel: "prefetch",
       as: "image",
-      href: "/boomerang-logo.svg",
+      href: "/boomerang-logo-dark.svg",
     },
     {
       rel: "icon",
       type: "image/png",
       href: "/boomerang-icon.png",
     },
+    { rel: "preconnect", href: "https://fonts.googleapis.com" },
+    {
+      rel: "preconnect",
+      href: "https://fonts.gstatic.com",
+      crossOrigin: "anonymous",
+    },
     {
       rel: "stylesheet",
-      href: "https://rsms.me/inter/inter.css",
+      href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap",
     },
   ];
 }
