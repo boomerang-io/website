@@ -47,6 +47,13 @@ Copy `.env.example` to `.env`. `app/utils/env.server.ts` validates it with zod a
 
 Loaders return plain objects or `data(value, init)`; components read them with `useLoaderData<typeof loader>()` (no route typegen). Route modules import everything from `react-router`.
 
+### What the docs repo can use
+- Frontmatter: `title`, `sidebarTitle` (shorter menu label), `description` (also used in `/llms.txt`), `order` (sorted `order || Infinity`, so never `0`), `hidden`, `tag` (menu badge), `toc: false`, `verified` (shows "Verified against <product> <value>" under the title).
+- GitHub alerts (`> [!NOTE]`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`) and tabs (headings between `<!-- tabs -->` and `<!-- /tabs -->`; the first heading level inside sets the tabs) come from `utils/md-plugins.server.ts`. The page wires the tab buttons in `useMarkdownTabs`.
+- A section's `index.md` stays frontmatter-only (the page route resolves `<pathToDocs>/<splat>.md`), so sections use named landing pages.
+- Moved pages: `redirects` in the product config (`config/doc.ts`), applied by the page route and the catch-all only when the old slug 404s on the release branch.
+- Machine-readable: every page is also served as markdown at its URL plus `.md` (the docs layout's `middleware`, `utils/markdown.server.ts`, links made absolute), `/llms.txt` lists every release-branch page (`routes/llms[.]txt.ts`), and the page header has Copy page as Markdown / View as Markdown. Absolute URLs use `publicOrigin()` (X-Forwarded-Proto) because Railway's proxy forwards plain http.
+
 ### Versions and refs
 - Releases (GitHub Releases, not bare tags, and not drafts) are cached once per repo (`utils/github/tags.ts`) and filtered per product by `versions.prefix`. The prefix is **stripped** for URLs: release `flow@4.0.0` is `/docs/flow/4.0.0/...`. A tag without a GitHub Release does not appear.
 - Always go through `getGitHubRef(product, ref)` when fetching from GitHub: it adds the prefix back for anything that isn't a configured branch or `local`.

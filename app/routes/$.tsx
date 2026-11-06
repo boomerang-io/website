@@ -2,7 +2,7 @@ import { handleRedirects } from "~/utils/http.server";
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect, data } from "react-router";
 import { getRepoDoc } from "~/utils/github";
-import { docConfig } from "~/config/doc";
+import { docConfig, getDocRedirect } from "~/config/doc";
 
 // We use the catch-all route to attempt to find a doc for the given path. If a
 // doc isn't found, we return a 404 as expected. However we also log those
@@ -53,9 +53,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   handleRedirects(new URL(request.url).pathname);
   handleStaticFileRequests(params["*"]);
 
+  let product = docConfig.defaultProduct;
+  let { pathToDocs, releaseBranch: ref } = docConfig.products[product];
   try {
-    let product = docConfig.defaultProduct;
-    let { pathToDocs, releaseBranch: ref } = docConfig.products[product];
     let doc = await getRepoDoc(ref, `${pathToDocs}/${params["*"]}`);
     if (!doc) throw null;
     // FIXME: This results in two fetches, as the loader for the docs page will
@@ -63,8 +63,10 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     // cache but we should probably fix it anyway.
     return redirect(`/docs/${product}/${ref}/${params["*"]}`);
   } catch {
-    // not a doc either
+    // not a doc on the release branch; it may have moved
   }
+  let moved = getDocRedirect(product, ref, params["*"]);
+  if (moved) throw redirect(moved, 301);
   throw data({}, { status: 404 });
 };
 

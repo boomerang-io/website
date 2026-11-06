@@ -47,7 +47,9 @@
     @apply mb-5 mt-0;
   }
 
-  /* The paragraph straight after the title reads as the page's lead. */
+  /* The paragraph straight after the title reads as the page's lead. The page renders the title
+     itself (Doc.title), so the body's first paragraph follows it. */
+  &.has-title > p:first-child,
   & h1 + p {
     @apply text-[17px] text-brand-muted md:text-[19px];
   }
@@ -374,6 +376,72 @@
 
   & docs-error {
     @apply border-[#FFC9CC] bg-[#FFF1F1] text-[#A2191F];
+  }
+
+  /*****************************************************************************/
+  /* GitHub-style alerts, > [!NOTE] and friends (remarkAlerts in md-plugins.server.ts) */
+
+  & .md-alert {
+    @apply mb-5 rounded-card border px-5 py-4;
+
+    & > :last-child {
+      @apply mb-0;
+    }
+
+    & a {
+      @apply text-inherit underline;
+    }
+  }
+
+  & .md-alert-title {
+    @apply mb-1.5 font-mono text-xs font-medium uppercase tracking-[0.12em];
+  }
+
+  & .md-alert-note {
+    @apply border-[#C9DEFF] bg-[#EDF5FF] text-[#002D9C];
+  }
+
+  & .md-alert-tip {
+    @apply border-[#A7E3D6] bg-[#E8F6F3] text-[#064F53];
+  }
+
+  & .md-alert-important {
+    @apply border-[#D4BBFF] bg-[#F6F2FF] text-[#491D8B];
+  }
+
+  & .md-alert-warning {
+    @apply border-[#F1D97A] bg-[#FFF8DB] text-[#5C4A00];
+  }
+
+  & .md-alert-caution {
+    @apply border-[#FFC9CC] bg-[#FFF1F1] text-[#A2191F];
+  }
+
+  /*****************************************************************************/
+  /* tabs, <!-- tabs --> … <!-- /tabs --> (remarkTabs in md-plugins.server.ts) */
+
+  & .md-tabs {
+    @apply mb-5;
+  }
+
+  & .md-tablist {
+    @apply mb-4 flex flex-wrap gap-1 border-b border-brand-line;
+  }
+
+  & .md-tablist [role="tab"] {
+    @apply -mb-px min-h-11 border-b-2 border-transparent px-3 text-[15px] font-medium text-brand-muted hover:text-brand-ink;
+  }
+
+  & .md-tablist [role="tab"][aria-selected="true"] {
+    @apply border-brand-teal text-brand-ink;
+  }
+
+  & .md-tablist [role="tab"]:focus-visible {
+    @apply rounded-t-md outline-none ring-2 ring-inset ring-brand-blue;
+  }
+
+  & .md-tabpanel > :last-child {
+    @apply mb-0;
   }
 
   /*****************************************************************************/

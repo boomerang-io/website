@@ -11,7 +11,11 @@ import {
   useResolvedPath,
   matchPath,
 } from "react-router";
-import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
+import type {
+  LoaderFunctionArgs,
+  HeadersFunction,
+  MiddlewareFunction,
+} from "react-router";
 import cx from "clsx";
 import invariant from "tiny-invariant";
 import "~/styles/docs.css";
@@ -28,6 +32,7 @@ import {
 } from "~/utils/github";
 import type { Doc } from "~/utils/github";
 import { octokit } from "~/utils/github.server";
+import { markdownResponse } from "~/utils/markdown.server";
 import { CACHE_CONTROL } from "~/utils/http.server";
 import { VersionWarningMessage } from "~/components/version-warning-message";
 import { siteConfig } from "~/config/site";
@@ -35,6 +40,12 @@ import type { MenuDoc } from "~/utils/github/docs";
 import { docConfig, getGitHubRef, getProduct } from "~/config/doc";
 import { Header } from "~/components/header";
 import { Badge } from "~/components/ui/badge";
+
+// Answers /docs/<product>/<ref>/<slug>.md with the page's markdown before any loader runs.
+export const middleware: MiddlewareFunction<Response>[] = [
+  async ({ request, params }, next) =>
+    (await markdownResponse(request, params)) ?? next(),
+];
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   let { product: productParam, ref = "", "*": splat } = params;
@@ -175,7 +186,10 @@ export function findMenuCategory(
 function DocsFooter() {
   return (
     <div className="flex flex-wrap justify-between gap-x-6 gap-y-3 border-t border-brand-line pt-6 text-[15px]">
-      <EditLink />
+      <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <EditLink />
+        <IssueLink />
+      </div>
       <span className="text-brand-muted">
         Docs and examples licensed under{" "}
         <a className="hover:underline" href={siteConfig.license.url}>
@@ -283,7 +297,7 @@ function Menu() {
               {menuCategoryType === "link" ? (
                 <MenuSummary as="div">
                   <MenuCategoryLink to={category.slug}>
-                    {category.attrs.title}
+                    {menuLabel(category)}
                   </MenuCategoryLink>
                 </MenuSummary>
               ) : (
@@ -291,10 +305,10 @@ function Menu() {
                   <MenuSummary>
                     {menuCategoryType === "linkAndDetails" ? (
                       <MenuCategoryLink to={category.slug}>
-                        {category.attrs.title}
+                        {menuLabel(category)}
                       </MenuCategoryLink>
                     ) : (
-                      category.attrs.title
+                      menuLabel(category)
                     )}
                     <span className="group-open/category:hidden">
                       <Chevron />
@@ -307,7 +321,7 @@ function Menu() {
                     {category.children.map((doc) => (
                       <li key={doc.slug}>
                         <MenuLink to={doc.slug}>
-                          {doc.attrs.title}
+                          {menuLabel(doc)}
                           {doc.attrs.tag && (
                             <Badge variant="outline" className="font-mono !font-normal">
                               {doc.attrs.tag}
@@ -327,6 +341,11 @@ function Menu() {
   ) : (
     <div className="text-brand-muted">Failed to load menu</div>
   );
+}
+
+// Frontmatter `sidebarTitle` shortens a page's label in the menu; the page keeps its title.
+function menuLabel(doc: MenuDoc) {
+  return doc.attrs.sidebarTitle || doc.attrs.title;
 }
 
 type MenuCategoryDetailsType = {
@@ -469,6 +488,40 @@ function EditLink() {
       rel="noreferrer"
     >
       {text}
+    </a>
+  );
+}
+
+/*
+ * "Found a problem?" opens an issue on the docs repository with the page and version filled in.
+ */
+function IssueLink() {
+  let doc = useDoc();
+  let { pathname } = useLocation();
+  let { repoUrl, currentRef, githubRef } = useLoaderData<typeof loader>();
+  if (!doc) return null;
+
+  let version = githubRef === currentRef ? currentRef : `${currentRef} (${githubRef})`;
+  let body = [
+    `Page: ${siteConfig.url}${pathname}`,
+    `Version: ${version}`,
+    `Source: ${doc.slug}.md`,
+    "",
+    "What's wrong or missing?",
+    "",
+  ].join("\n");
+  let url = `${repoUrl}/issues/new?title=${encodeURIComponent(
+    `Docs: ${doc.attrs.title}`
+  )}&body=${encodeURIComponent(body)}`;
+
+  return (
+    <a
+      className="text-brand-muted hover:text-brand-link hover:underline"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      Found a problem? Open an issue
     </a>
   );
 }

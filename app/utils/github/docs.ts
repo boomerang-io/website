@@ -9,9 +9,13 @@ import { env } from "~/utils/env.server";
 
 interface MenuDocAttributes {
   title: string;
+  // A shorter label for the sidebar; the page title is used when it's absent
+  sidebarTitle?: string;
   description?: string;
   order?: number;
   new?: boolean;
+  // The product version the page was last checked against, i.e. "5.0.0"
+  verified?: string | number;
   [key: string]: any;
 }
 
@@ -24,6 +28,8 @@ export interface MenuDoc {
 }
 
 export interface Doc extends Omit<MenuDoc, "hasContent"> {
+  // The page's H1, taken out of `html` so the page can put its own lines under it
+  title?: { html: string; slug?: string };
   html: string;
   headings: {
     headingLevel: string;
@@ -35,6 +41,7 @@ export interface Doc extends Omit<MenuDoc, "hasContent"> {
 declare global {
   var menuCache: LRUCache<string, MenuDoc[]>;
   var docCache: LRUCache<string, Doc>;
+  var markdownCache: LRUCache<string, string>;
   var imageCache: LRUCache<string, Buffer>;
 }
 
@@ -112,11 +119,55 @@ async function fetchDoc(key: string): Promise<Doc> {
 
     // sorry, cheerio is so much easier than using rehype stuff.
     let headings = createTableOfContentsFromHeadings(html);
-    return { attrs, filename, html, slug, headings, children: [] };
+    let { title, body } = takeTitle(html);
+    return { attrs, filename, title, html: body, slug, headings, children: [] };
   } catch (err) {
     console.error(`Error processing doc file ${filename} in ${ref}`, err);
     throw err;
   }
+}
+
+/**
+ * Splits the first H1 off the rendered page.
+ */
+function takeTitle(html: string): { title?: Doc["title"]; body: string } {
+  let $doc = $(html, null, false);
+  let h1 = $doc("h1").first();
+  if (h1.length === 0) return { body: html };
+  let title = { html: h1.html() ?? "", slug: h1.attr("id") };
+  h1.remove();
+  return { title, body: $doc.html() };
+}
+
+/**
+ * The page as markdown for /<page>.md: the file without its frontmatter, starting with the title.
+ */
+global.markdownCache ??= new LRUCache<string, string>({
+  max: 300,
+  ttl: NO_CACHE ? 1 : 1000 * 60 * 5, // 5 minutes
+  allowStale: !NO_CACHE,
+  noDeleteOnFetchRejection: true,
+  fetchMethod: fetchMarkdown,
+});
+
+async function fetchMarkdown(key: string): Promise<string> {
+  let [repo, ref, slug] = key.split(":");
+  let filename = `${slug}.md`;
+  let md = await getRepoContent(repo, ref, filename);
+  if (md === null) {
+    throw Error(`Could not find ${filename} in ${repo}@${ref}`);
+  }
+  let { content, attrs } = parseAttrs(md, filename);
+  let body = content.trim();
+  return body.startsWith("# ") ? body : `# ${attrs.title}\n\n${body}`;
+}
+
+export async function getMarkdown(
+  repo: string,
+  ref: string,
+  slug: string,
+): Promise<string | undefined> {
+  return markdownCache.fetch(`${repo}:${ref}:${slug}`);
 }
 
 /**

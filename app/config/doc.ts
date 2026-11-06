@@ -11,6 +11,8 @@ Each product is a top-level folder of that repository with its own release line,
 - releaseBranch: the branch used as the release branch. A URL without a version resolves to it.
 - versions.prefix: the release tag prefix, i.e. "flow@" for "flow@4.0.0". URLs carry the version without it.
 - versions.includeMinor: If true, the minor version will be included in the version list i.e. "1.1.0" and "1.2.0". If false, only the latest major version will be included i.e. "1.2.0".
+- redirects: moved pages, old slug → new slug. Applied only when the old slug 404s on the release branch, so
+  released versions keep their own pages.
 */
 
 export type ProductConfig = {
@@ -23,6 +25,7 @@ export type ProductConfig = {
     prefix: string;
     includeMinor: boolean;
   };
+  redirects?: Record<string, string>;
 };
 
 const products = {
@@ -35,6 +38,24 @@ const products = {
     versions: {
       prefix: "flow@",
       includeMinor: true,
+    },
+    // The Flow v5 restructure (boomerang-io/docs feat-flow-v5).
+    redirects: {
+      "guides/edit": "guides/workflow-editor",
+      "guides/delete": "guides/create",
+      "guides/management": "guides/create",
+      "guides/params": "fundamentals/parameters",
+      "architecture/agents": "architecture/dispatchers",
+      "architecture/tasks": "extend/task-contract",
+      "hosting/logging": "hosting/task-logs",
+      "fundamentals/home": "webapp/home",
+      "fundamentals/activity": "webapp/activity",
+      "fundamentals/insights": "webapp/insights",
+      "fundamentals/schedules": "webapp/schedules",
+      "fundamentals/integrations": "webapp/integrations",
+      "fundamentals/manage": "webapp/manage",
+      "fundamentals/quotas": "webapp/quotas",
+      "fundamentals/administer": "webapp/administer",
     },
   },
   bosun: {
@@ -72,6 +93,19 @@ export function getProduct(segment: string | undefined): Product | undefined {
       product === segment ||
       docConfig.products[product].aliases.includes(segment),
   );
+}
+
+/**
+ * Where a moved page now lives, as a docs path, or undefined. Only the release branch redirects.
+ */
+export function getDocRedirect(
+  product: Product,
+  ref: string,
+  slug: string | undefined,
+): string | undefined {
+  let { releaseBranch, redirects } = docConfig.products[product];
+  let target = ref === releaseBranch && slug ? redirects?.[slug] : undefined;
+  return target && `/docs/${product}/${ref}/${target}`;
 }
 
 /**

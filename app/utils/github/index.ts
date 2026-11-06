@@ -1,4 +1,4 @@
-import { getDoc, getMenu, getImage } from "./docs";
+import { getDoc, getMenu, getImage, getMarkdown } from "./docs";
 import { getBranches } from "./branches";
 import { getTags } from "./tags";
 import type { Octokit } from "octokit";
@@ -12,7 +12,7 @@ export {
   getLatestVersionHeads,
 } from "./tags";
 
-export type { Doc } from "./docs";
+export type { Doc, MenuDoc } from "./docs";
 
 const REPO = env.SOURCE_REPO;
 
@@ -42,4 +42,8 @@ export function getRepoDoc(ref: string, slug: string) {
 
 export function getRepoImage(ref: string, slug: string) {
   return getImage(REPO, ref, slug);
+}
+
+export function getRepoMarkdown(ref: string, slug: string) {
+  return getMarkdown(REPO, ref, slug);
 }

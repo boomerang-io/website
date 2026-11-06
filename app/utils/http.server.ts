@@ -74,6 +74,16 @@ export function removeTrailingSlashes(request: Request) {
   }
 }
 
+/**
+ * The origin visitors use. Behind Railway's proxy the request arrives as plain http, so the
+ * scheme comes from X-Forwarded-Proto when it is set.
+ */
+export function publicOrigin(request: Request) {
+  let url = new URL(request.url);
+  let proto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  return proto ? `${proto}://${url.host}` : url.origin;
+}
+
 export function isProductionHost(request: Request) {
   return !request.headers.get("host")?.startsWith("localhost");
 }

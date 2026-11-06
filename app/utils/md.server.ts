@@ -6,6 +6,7 @@
 import parseFrontMatter from "gray-matter";
 import themeJson from "~/styles/base16.json";
 import { transformerCopyButton } from '@rehype-pretty/transformers';
+import { remarkAlerts, remarkTabs } from "~/utils/md-plugins.server";
 
 let processor: Awaited<ReturnType<typeof getProcessor>>;
 export async function processMarkdown(content: string) {
@@ -45,6 +46,8 @@ export async function getProcessor() {
   return unified()
     .use(remarkParse)
     .use(remarkGfm)
+    .use(remarkAlerts)
+    .use(remarkTabs)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .use(rehypeSlug)
